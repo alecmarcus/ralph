@@ -1,0 +1,950 @@
+{
+  "project": "acra",
+  "description": "Agentic AI Designer for Figma — Claude-powered design agent with org-shared memory via Vestige",
+  "reviewDate": "2026-02-20",
+  "reviewSummary": "Comprehensive first-principles code review of 193 files (~34,700 lines). Found 13 critical, 42 major, and 50+ minor issues across security, performance, architecture, testing, and code quality.",
+  "gates": [
+    {
+      "id": "review-1",
+      "name": "Security",
+      "priority": "P0",
+      "status": "pending",
+      "stories": ["REV-001", "REV-002", "REV-003", "REV-004", "REV-005", "REV-006"]
+    },
+    {
+      "id": "review-2",
+      "name": "Critical Bugs & Performance",
+      "priority": "P0",
+      "status": "pending",
+      "stories": ["REV-007", "REV-008", "REV-009", "REV-010", "REV-011", "REV-012", "REV-013", "REV-014"]
+    },
+    {
+      "id": "review-3",
+      "name": "Dead Protocol & Dead Code",
+      "priority": "P1",
+      "status": "pending",
+      "stories": ["REV-015", "REV-016", "REV-017", "REV-018", "REV-019"]
+    },
+    {
+      "id": "review-4",
+      "name": "Architecture & State Management",
+      "priority": "P1",
+      "status": "pending",
+      "stories": ["REV-020", "REV-021", "REV-022", "REV-023", "REV-024", "REV-025", "REV-026", "REV-027"]
+    },
+    {
+      "id": "review-5",
+      "name": "Type Safety & Code Quality",
+      "priority": "P1",
+      "status": "pending",
+      "stories": ["REV-028", "REV-029", "REV-030", "REV-031", "REV-032", "REV-033", "REV-034"]
+    },
+    {
+      "id": "review-6",
+      "name": "Testing Overhaul",
+      "priority": "P0",
+      "status": "pending",
+      "stories": ["REV-035", "REV-036", "REV-037", "REV-038"]
+    },
+    {
+      "id": "review-7",
+      "name": "Build, Config & Infrastructure",
+      "priority": "P1",
+      "status": "pending",
+      "stories": ["REV-039", "REV-040", "REV-041", "REV-042", "REV-043", "REV-044"]
+    },
+    {
+      "id": "review-8",
+      "name": "CSS, HTML & Accessibility",
+      "priority": "P2",
+      "status": "pending",
+      "stories": ["REV-045", "REV-046", "REV-047", "REV-048", "REV-049", "REV-050"]
+    },
+    {
+      "id": "review-9",
+      "name": "Minor Fixes & Cleanup",
+      "priority": "P2",
+      "status": "pending",
+      "stories": ["REV-051", "REV-052", "REV-053", "REV-054", "REV-055", "REV-056", "REV-057", "REV-058", "REV-059", "REV-060"]
+    }
+  ],
+  "stories": [
+    {
+      "id": "REV-001",
+      "title": "Replace string-based safety check with AST-based or allowlist approach",
+      "gate": "review-1",
+      "severity": "critical",
+      "priority": "P0",
+      "status": "pending",
+      "files": ["src/plugin/safety.ts", "src/plugin/executor.ts"],
+      "description": "The safety check in safety.ts uses `code.includes(pattern)` which is trivially bypassable via string concatenation (`'ev'+'al'`), bracket notation (`globalThis['eval']`), template literals, unicode escapes, whitespace insertion, and variable aliasing. This is the ONLY security boundary before `new Function()` execution in executor.ts:104. An LLM generating adversarial code through prompt injection could bypass all checks.",
+      "actionItems": [
+        "Replace string-matching with AST parsing (e.g., acorn/esprima) to detect blocked API calls regardless of obfuscation",
+        "Alternatively, use an allowlist approach: only permit calls to known-safe Figma APIs",
+        "Add tests with bypass payloads to verify the new approach",
+        "Consider running user code in a more restricted scope (Object.freeze globals, Proxy-based traps)"
+      ]
+    },
+    {
+      "id": "REV-002",
+      "title": "Replace regex-based HTML sanitizer with DOMPurify",
+      "gate": "review-1",
+      "severity": "critical",
+      "priority": "P0",
+      "status": "pending",
+      "files": ["src/ui/services/sanitizer.ts"],
+      "description": "sanitizer.ts uses regex to strip dangerous HTML. Regex-based sanitization is a known anti-pattern that is trivially bypassable: nested tag reconstruction (`<scr<script>ipt>`), SVG onload, entity-encoded javascript: URLs, and more. Any user-controlled markdown rendered through this sanitizer is an XSS vector.",
+      "actionItems": [
+        "Replace with DOMPurify or a proper allowlist-based sanitizer",
+        "Add comprehensive XSS test vectors",
+        "Audit all call sites that pass user/AI content through sanitizeHtml"
+      ]
+    },
+    {
+      "id": "REV-003",
+      "title": "Add backend proxy for Claude API calls to protect API key",
+      "gate": "review-1",
+      "severity": "critical",
+      "priority": "P0",
+      "status": "pending",
+      "files": ["src/ui/services/claude.ts", "src/ui/services/compactor.ts", "src/ui/components/chat-panel.ts", "src/ui/state/persistence.ts"],
+      "description": "The Anthropic SDK is instantiated directly in the browser iframe with `dangerouslyAllowBrowser: true` in 4 locations. The API key is stored in plaintext in Figma client storage, held in the global AppStateShape, and visible in network traffic / devtools. There is no backend proxy. The `maskApiKey` utility in security.ts exists but is never used anywhere.",
+      "actionItems": [
+        "Design and implement a lightweight backend proxy for API calls",
+        "Remove `dangerouslyAllowBrowser: true` from all 4 locations",
+        "If proxy is not feasible, at minimum encrypt the key at rest and clear it from memory after use",
+        "Use maskApiKey in all logging/error paths that might contain the key",
+        "Remove apiKey from PERSISTED_KEYS or encrypt before persisting"
+      ]
+    },
+    {
+      "id": "REV-004",
+      "title": "Fix validateApiKey returning false on network errors",
+      "gate": "review-1",
+      "severity": "major",
+      "priority": "P0",
+      "status": "pending",
+      "files": ["src/ui/services/claude.ts"],
+      "description": "claude.ts:126-132: The comment says 'Network or other errors -- assume key might be fine' but the code returns `false`. If the user is offline or the API returns 500, validation incorrectly reports the key as invalid. Direct contradiction between comment and code.",
+      "actionItems": [
+        "Change return value to `true` in the catch block (match the comment intent)",
+        "Or return a tri-state result: valid / invalid / unknown"
+      ]
+    },
+    {
+      "id": "REV-005",
+      "title": "Fix postMessage wildcard target origin",
+      "gate": "review-1",
+      "severity": "major",
+      "priority": "P1",
+      "status": "pending",
+      "files": ["src/ui/services/bridge.ts"],
+      "description": "bridge.ts:59 uses `parent.postMessage(message, '*')` with wildcard target origin. While required by Figma's iframe architecture, API keys flow through these messages. Document this as an accepted risk or implement message-level encryption.",
+      "actionItems": [
+        "Document the security implications as an accepted architectural risk",
+        "Consider not passing the API key through postMessage at all (keep it UI-side only)"
+      ]
+    },
+    {
+      "id": "REV-006",
+      "title": "Add exhaustive affordance type validation in security.ts",
+      "gate": "review-1",
+      "severity": "minor",
+      "priority": "P2",
+      "status": "pending",
+      "files": ["src/shared/security.ts"],
+      "description": "security.ts:47-61: `validateAffordanceConfig` only handles 3 of 7+ affordance types. All others pass through the default branch with no validation. No exhaustiveness check.",
+      "actionItems": [
+        "Add validation cases for all affordance types",
+        "Add TypeScript exhaustiveness check (never type in default case)"
+      ]
+    },
+    {
+      "id": "REV-007",
+      "title": "Fix runAnalyzerInChunks to actually chunk work",
+      "gate": "review-2",
+      "severity": "critical",
+      "priority": "P0",
+      "status": "pending",
+      "files": ["src/plugin/usage-analyzer.ts"],
+      "description": "usage-analyzer.ts:119-128: `runAnalyzerInChunks` yields between chunks for progress reporting, but then runs the ENTIRE analyzer synchronously on the full node array at the end. All chunking is cosmetic theater — the blocking work happens in a single `analyzer(nodes)` call. Every one of the 12 analyzers blocks the main thread for its full duration.",
+      "actionItems": [
+        "Refactor analyzers to accept a slice of nodes and accumulate results across chunks",
+        "Move the actual analysis into the chunk loop, not after it",
+        "Test with large documents (1000+ nodes) to verify non-blocking behavior"
+      ]
+    },
+    {
+      "id": "REV-008",
+      "title": "Fix hasDesignSystemChanged — full re-index disguised as cheap check",
+      "gate": "review-2",
+      "severity": "critical",
+      "priority": "P0",
+      "status": "pending",
+      "files": ["src/plugin/design-system.ts"],
+      "description": "design-system.ts:490-501: `hasDesignSystemChanged` calls `indexDesignSystem()` (full document traversal with findAllWithCriteria, findAll, etc.) just to compare counts. Docstring says 'cheap and fast' — it is neither. Can freeze the UI on large documents.",
+      "actionItems": [
+        "Maintain a running count of components/styles/variables instead of re-indexing",
+        "Or use a lightweight hash (e.g., count + names hash) that can be computed without full traversal",
+        "Fix the misleading docstring"
+      ]
+    },
+    {
+      "id": "REV-009",
+      "title": "Fix renderScheduler.cancelAll() destroying global state",
+      "gate": "review-2",
+      "severity": "critical",
+      "priority": "P0",
+      "status": "pending",
+      "files": ["src/ui/components/markdown-block.ts", "src/ui/services/render-scheduler.ts"],
+      "description": "markdown-block.ts:310 calls `renderScheduler.cancelAll()` in disconnectedCallback. renderScheduler is a global singleton — this cancels ALL scheduled work across the entire app, including streaming batch updates from chat-panel.ts. If a markdown-block is removed mid-stream (e.g., during retry), the streaming pipeline silently breaks.",
+      "actionItems": [
+        "Add a `cancel(key: string)` method to RenderScheduler",
+        "Replace cancelAll() in markdown-block with cancel(this._schedulerKey)",
+        "Fix the _idleTimers array that grows unboundedly (entries never removed after execution)",
+        "Replace the `(this as any)['_ric_' + timer]` hack with a proper Map<number, number>"
+      ]
+    },
+    {
+      "id": "REV-010",
+      "title": "Fix design-system.ts double/triple document traversals",
+      "gate": "review-2",
+      "severity": "major",
+      "priority": "P0",
+      "status": "pending",
+      "files": ["src/plugin/design-system.ts"],
+      "description": "Multiple redundant full-document traversals: (1) discoverRemoteStyles calls findAllWithCriteria for TEXT nodes, then findAll() for everything (text nodes already included). (2) indexDesignSystemAsync pre-counts by calling the same findAllWithCriteria that the async indexers will repeat — doubling the tree walk cost. (3) The 500-node slice limit in discoverRemoteStyles is arbitrary and position-dependent.",
+      "actionItems": [
+        "Do a single findAll() traversal and partition nodes by type",
+        "Pass pre-fetched node lists to async indexers instead of re-querying",
+        "Replace the arbitrary 500-node limit with a more principled approach (e.g., sample across tree levels)"
+      ]
+    },
+    {
+      "id": "REV-011",
+      "title": "Fix character-by-character font loading in materializer and executor",
+      "gate": "review-2",
+      "severity": "major",
+      "priority": "P1",
+      "status": "pending",
+      "files": ["src/plugin/materializer.ts", "src/plugin/executor.ts"],
+      "description": "materializer.ts:366-383 and executor.ts:81-88: For a text node with N characters, these make N individual `getRangeFontName(i, i+1)` API calls. On a 10,000-character text node, that is 10,000 Figma API calls.",
+      "actionItems": [
+        "Use binary search or range scanning to find font boundaries instead of character-by-character iteration",
+        "Cache font results per range to avoid redundant API calls"
+      ]
+    },
+    {
+      "id": "REV-012",
+      "title": "Fix executor.ts timeout that doesn't actually cancel execution",
+      "gate": "review-2",
+      "severity": "major",
+      "priority": "P1",
+      "status": "pending",
+      "files": ["src/plugin/executor.ts"],
+      "description": "executor.ts:116-121: Promise.race rejects with timeout error, but executionFn continues running in the background. User code keeps consuming resources and mutating the Figma document after the 'timeout'. No way to abort new Function() in JS, but the user should be warned.",
+      "actionItems": [
+        "Add a guard flag that prevents further figma.* mutations after timeout",
+        "Document the limitation clearly in the UI error message",
+        "Consider wrapping the figma API in a Proxy that checks a killed flag"
+      ]
+    },
+    {
+      "id": "REV-013",
+      "title": "Fix stale variable caches in context.ts",
+      "gate": "review-2",
+      "severity": "major",
+      "priority": "P1",
+      "status": "pending",
+      "files": ["src/plugin/context.ts"],
+      "description": "context.ts:499-501: Module-level _varCache and _collCache are only cleared at currentLevel === 0. If serializeNode is called from multiple distinct code paths between events, caches may contain stale data (renamed variables, changed collections). Caches also grow indefinitely within a session.",
+      "actionItems": [
+        "Add explicit cache invalidation on document-change events",
+        "Add cache size limits or TTL",
+        "Consider using WeakMap keyed on variable/collection objects"
+      ]
+    },
+    {
+      "id": "REV-014",
+      "title": "Fix duck-type check misidentifying plain objects as Figma nodes",
+      "gate": "review-2",
+      "severity": "major",
+      "priority": "P1",
+      "status": "pending",
+      "files": ["src/plugin/context.ts"],
+      "description": "context.ts:712-757: isFigmaNode() only checks for id/type/name strings. Any plain object {id:'x', type:'y', name:'z'} is misidentified as a SceneNode, causing crashes when serializeNode tries Figma-specific APIs. Also risks unbounded deep serialization.",
+      "actionItems": [
+        "Add a more robust check (e.g., check for Figma-specific properties like 'parent' or 'absoluteTransform')",
+        "Add depth guards to prevent unbounded recursive serialization",
+        "Consider checking against a known Figma node type enum"
+      ]
+    },
+    {
+      "id": "REV-015",
+      "title": "Remove dead protocol entries with no sandbox handlers",
+      "gate": "review-3",
+      "severity": "critical",
+      "priority": "P0",
+      "status": "pending",
+      "files": ["src/shared/protocol.ts", "src/plugin/code.ts"],
+      "description": "Four UI-to-sandbox message types are defined in protocol.ts but have ZERO handlers: search-request (line 301), update-node (line 243), create-node (line 251), resize-ui (line 333). If any code sends these, the bridge request will timeout after 30s. Additionally, ui-ready (line 226) is sent by acra-app.ts:316 but has no handler — the plugin works by coincidence via independent selectionchange events.",
+      "actionItems": [
+        "Remove search-request, update-node, create-node from protocol if truly dead",
+        "Or implement handlers if they are needed",
+        "Add a ui-ready handler that sends initial state (selection, DS index)",
+        "Remove resize-ui or implement it",
+        "Add compile-time checks that every message type has a handler"
+      ]
+    },
+    {
+      "id": "REV-016",
+      "title": "Remove dead code: screenshot handler string building, unused components",
+      "gate": "review-3",
+      "severity": "major",
+      "priority": "P1",
+      "status": "pending",
+      "files": ["src/plugin/handlers/screenshot-handler.ts", "src/ui/components/shared/scroll-anchor.ts", "src/ui/components/shared/avatar.ts", "src/ui/components/shared/error-toast.ts"],
+      "description": "screenshot-handler.ts:20-28 builds an O(n^2) binary string via string concatenation that is NEVER used (figma.base64Encode takes the original bytes). Three UI components are registered as custom elements but never imported: scroll-anchor.ts, avatar.ts, error-toast.ts. chat-message.ts:242-301 has _renderToolUse/_renderToolResult methods that are filtered out before they can execute (line 383).",
+      "actionItems": [
+        "Remove the dead binary string building from uint8ToBase64",
+        "Delete unused components: scroll-anchor.ts, avatar.ts, error-toast.ts",
+        "Remove unreachable _renderToolUse/_renderToolResult code paths and their CSS",
+        "Remove the deprecated SerializedNode type alias (protocol.ts:221-222) and update all 3 usages"
+      ]
+    },
+    {
+      "id": "REV-017",
+      "title": "Remove dead analyzeAndLearn function and unused stream method",
+      "gate": "review-3",
+      "severity": "minor",
+      "priority": "P2",
+      "status": "pending",
+      "files": ["src/ui/services/auto-learn.ts", "src/ui/services/network.ts"],
+      "description": "auto-learn.ts:42-47: analyzeAndLearn is exported but is a no-op returning empty arrays. network.ts:169: The stream() generator method is declared on NetworkService interface and implemented but never called anywhere.",
+      "actionItems": [
+        "Delete analyzeAndLearn or mark as @internal and unexport",
+        "Delete the stream() method from both the interface and implementation"
+      ]
+    },
+    {
+      "id": "REV-018",
+      "title": "Remove console.log/group calls from production code",
+      "gate": "review-3",
+      "severity": "minor",
+      "priority": "P2",
+      "status": "pending",
+      "files": ["src/ui/services/agentic-loop.ts"],
+      "description": "agentic-loop.ts has verbose console.log, console.group, console.groupEnd, console.warn throughout (lines 92, 127, 133, 149, 152, 281-297). These expose internal tool call details including inputs/outputs in the browser console.",
+      "actionItems": [
+        "Remove all console.* calls or put them behind a debug flag",
+        "Consider a structured logging service that can be toggled"
+      ]
+    },
+    {
+      "id": "REV-019",
+      "title": "Remove unused CSS custom properties and dead CDN permission",
+      "gate": "review-3",
+      "severity": "minor",
+      "priority": "P2",
+      "status": "pending",
+      "files": ["src/ui/styles/tokens.css", "manifest.json"],
+      "description": "Several CSS custom properties are defined but never referenced: --acra-font-size-3xl, --acra-space-9 through -12, --acra-sidebar-width, --acra-plugin-width. manifest.json allows cdn.jsdelivr.net but nothing in src/ references this CDN — it's a vestigial network permission widening the attack surface.",
+      "actionItems": [
+        "Remove unused CSS custom properties",
+        "Remove cdn.jsdelivr.net from manifest.json allowedDomains"
+      ]
+    },
+    {
+      "id": "REV-020",
+      "title": "Consolidate re-declared types into shared .d.ts files",
+      "gate": "review-4",
+      "severity": "major",
+      "priority": "P0",
+      "status": "pending",
+      "files": ["src/ui/services/prompt-builder.ts", "src/ui/services/auto-learn.ts", "src/ui/services/tools/read-usage.ts", "src/ui/services/ds-summarizer.ts", "src/ui/state/types.ts"],
+      "description": "At least 5 files re-declare the same interfaces locally with 'Re-declared to avoid cross-tsconfig import' comments. Types like NodeContext, SpacingPattern, ColorUsage, DesignSystemIndex etc. are duplicated between plugin and UI sides. These can silently drift out of sync, causing runtime data shape mismatches with no compiler error.",
+      "actionItems": [
+        "Create a shared types package or .d.ts files that both tsconfigs can reference",
+        "Or use TypeScript project references properly to allow cross-project type imports",
+        "Delete all local re-declarations once shared types are in place"
+      ]
+    },
+    {
+      "id": "REV-021",
+      "title": "Unify dual error systems (AcraError vs ClaudeError)",
+      "gate": "review-4",
+      "severity": "major",
+      "priority": "P1",
+      "status": "pending",
+      "files": ["src/shared/errors.ts", "src/ui/services/claude-types.ts", "src/ui/services/error-handler.ts"],
+      "description": "Two parallel error hierarchies that never bridge: AcraError (structured with category/severity/code/recoveryHint) and ClaudeError (simple type+message). Claude API errors never reach the errorHandler singleton. The errorHandler.getRecent() list never includes API errors. 10+ silent catch {} blocks throughout swallow errors with no logging.",
+      "actionItems": [
+        "Convert ClaudeError to extend or wrap AcraError",
+        "Route all errors through the errorHandler singleton",
+        "Add at minimum console.debug to all catch blocks that swallow errors",
+        "Create a standard error formatting utility to replace inconsistent String(err) vs err.message patterns"
+      ]
+    },
+    {
+      "id": "REV-022",
+      "title": "Fix duplicate isStreaming state",
+      "gate": "review-4",
+      "severity": "major",
+      "priority": "P1",
+      "status": "pending",
+      "files": ["src/ui/state/types.ts"],
+      "description": "isStreaming exists both at AppStateShape.conversation.isStreaming and as a top-level AppStateShape.isStreaming. UI components may read one while the agentic loop updates the other, causing inconsistency.",
+      "actionItems": [
+        "Remove one of the two isStreaming properties",
+        "Ensure all read/write sites use the single source of truth"
+      ]
+    },
+    {
+      "id": "REV-023",
+      "title": "Deduplicate _sendMessage and _sendFromMessages in chat-panel",
+      "gate": "review-4",
+      "severity": "major",
+      "priority": "P1",
+      "status": "pending",
+      "files": ["src/ui/components/chat-panel.ts"],
+      "description": "chat-panel.ts:231-345 and 457-542: These two methods construct identical AgenticLoop instances with identical callback shapes. ~200 lines of duplication. _sendFromMessages also has inconsistent onToolCall/onToolResult handlers that inject markdown text blocks directly.",
+      "actionItems": [
+        "Extract shared loop construction into a private helper method",
+        "Parameterize only the differences (user message insertion, tool result formatting)"
+      ]
+    },
+    {
+      "id": "REV-024",
+      "title": "Deduplicate buildSystemPrompt and getPromptSections",
+      "gate": "review-4",
+      "severity": "major",
+      "priority": "P1",
+      "status": "pending",
+      "files": ["src/ui/services/prompt-builder.ts"],
+      "description": "prompt-builder.ts:387-460 and 480-571: Nearly identical logic for fetching data, formatting sections, and ordering. Any bug fix must be applied in both places.",
+      "actionItems": [
+        "Extract a common internal implementation that both functions delegate to",
+        "Use a shared data-fetching step with a formatting-only divergence"
+      ]
+    },
+    {
+      "id": "REV-025",
+      "title": "Fix agentic loop cancellation race conditions",
+      "gate": "review-4",
+      "severity": "major",
+      "priority": "P1",
+      "status": "pending",
+      "files": ["src/ui/services/agentic-loop.ts"],
+      "description": "agentic-loop.ts: Multiple cancellation issues: (1) abortController is overwritten each iteration — cancel() between iterations calls abort() on the old controller. (2) cancel() during tool execution: the currently executing tool runs to completion because no abort signal is passed to tool handlers. (3) chat-panel.ts:48,385,404: _abortController is never assigned during _sendMessage, making the abort codepath dead.",
+      "actionItems": [
+        "Pass AbortSignal through to tool handlers",
+        "Ensure cancellation is checked after each tool execution, not just between iterations",
+        "Fix _abortController in chat-panel.ts to actually be created and used"
+      ]
+    },
+    {
+      "id": "REV-026",
+      "title": "Fix selection race condition between debounced event and bridge request",
+      "gate": "review-4",
+      "severity": "major",
+      "priority": "P1",
+      "status": "pending",
+      "files": ["src/plugin/code.ts", "src/plugin/handlers/read-handlers.ts", "src/ui/services/prompt-builder.ts"],
+      "description": "Selection change is debounced at 250ms (code.ts:130) but read-selection reads synchronously (read-handlers.ts:51). The prompt builder's fetchSelectionContext() returns live selection while store.getState().selection may still reflect the previous selection. The system prompt can include a different selection context than what the store shows.",
+      "actionItems": [
+        "Use the bridge's selection response as the single source of truth for prompt building",
+        "Or flush the debounced selection update before building the prompt"
+      ]
+    },
+    {
+      "id": "REV-027",
+      "title": "Fix DS index cached in two places with no invalidation coordination",
+      "gate": "review-4",
+      "severity": "major",
+      "priority": "P1",
+      "status": "pending",
+      "files": ["src/plugin/handlers/search-handler.ts", "src/ui/services/prompt-builder.ts"],
+      "description": "DS index is cached on plugin side (search-handler.ts:14-22, 30s TTL) and UI side (store.getState().dsIndex, no TTL). These are never coordinated. When the DS changes, plugin cache refreshes after 30s but UI cache persists indefinitely until plugin reload.",
+      "actionItems": [
+        "Implement a ds-changed event from sandbox to UI on document changes",
+        "Or use a single cache location with a refresh protocol"
+      ]
+    },
+    {
+      "id": "REV-028",
+      "title": "Fix local-context.ts injecting properties via 'as any' casts",
+      "gate": "review-5",
+      "severity": "minor",
+      "priority": "P1",
+      "status": "pending",
+      "files": ["src/plugin/local-context.ts"],
+      "description": "local-context.ts:117,126-134: Adds fillColor, fontFamily, fontStyle, fontSize, textColor to SiblingEntry via `(entry as any).prop = value` casts. These properties are invisible to TypeScript consumers of the SiblingEntry interface.",
+      "actionItems": [
+        "Add the extra properties to the SiblingEntry interface definition",
+        "Remove all `as any` casts"
+      ]
+    },
+    {
+      "id": "REV-029",
+      "title": "Fix unsafe casts throughout codebase",
+      "gate": "review-5",
+      "severity": "minor",
+      "priority": "P2",
+      "status": "pending",
+      "files": ["src/ui/services/agentic-loop.ts", "src/ui/services/tools/execute-code.ts", "src/ui/services/claude.ts", "src/ui/components/affordances/affordance-host.ts", "src/ui/components/markdown-block.ts"],
+      "description": "Pervasive `as any` casts: agentic-loop.ts:126 (textBlocks[0] as any).text, execute-code.ts:143 (result as any).selectionSnapshot, claude.ts:97 (params as any).thinking, affordance-host.ts:183-227 all config properties cast, markdown-block.ts:377 (copyBtn as any).text. Each bypass defeats TypeScript's type checking.",
+      "actionItems": [
+        "Replace with proper type narrowing or typed interfaces",
+        "For SDK workarounds (claude.ts:97,179), document the reason and use module augmentation instead of `as any`",
+        "Define typed config interfaces per affordance type in affordance-host.ts"
+      ]
+    },
+    {
+      "id": "REV-030",
+      "title": "Fix bridge.ts requestId pattern — callers pass empty string that is always overwritten",
+      "gate": "review-5",
+      "severity": "major",
+      "priority": "P1",
+      "status": "pending",
+      "files": ["src/ui/services/bridge.ts", "src/ui/services/prompt-builder.ts", "src/ui/services/tools/execute-code.ts"],
+      "description": "bridge.ts:67-68 generates a requestId and overwrites whatever the caller passes, but every call site passes `requestId: ''` as a placeholder. The requestId field is declared as required in message interfaces, yet the actual value is always ignored.",
+      "actionItems": [
+        "Change request() to accept messages WITHOUT requestId and add it internally",
+        "Or use Omit<MessageType, 'requestId'> for the request parameter type"
+      ]
+    },
+    {
+      "id": "REV-031",
+      "title": "Fix code.ts bypassing typed bridge with direct postMessage",
+      "gate": "review-5",
+      "severity": "minor",
+      "priority": "P2",
+      "status": "pending",
+      "files": ["src/plugin/code.ts"],
+      "description": "code.ts:115,127,147,161-165: sendSelectionChanged, runBackgroundAnalysis, and the page-change handler all use figma.ui.postMessage() directly, bypassing the typed sandboxBridge.send(). These messages are not type-checked against PluginMessageMap.",
+      "actionItems": [
+        "Route all messages through sandboxBridge.send() for type safety",
+        "Add the missing message types to PluginMessageMap if needed"
+      ]
+    },
+    {
+      "id": "REV-032",
+      "title": "Deduplicate utility functions across analyzer files and services",
+      "gate": "review-5",
+      "severity": "minor",
+      "priority": "P2",
+      "status": "pending",
+      "files": ["src/plugin/analyzers/spacing-analyzer.ts", "src/plugin/analyzers/tree-utils.ts", "src/plugin/analyzers/color-analyzer.ts", "src/plugin/analyzers/typography-analyzer.ts", "src/ui/services/file-handler.ts", "src/ui/services/image-handler.ts", "src/ui/components/affordances/color-picker.ts", "src/ui/components/affordances/swatch-grid.ts"],
+      "description": "Multiple functions duplicated: namePrefix, rgbToHex, parseFontWeight duplicated between tree-utils.ts and original analyzers. formatFileSize duplicated between file-handler.ts and image-handler.ts. _normalizeHex and _contrastColor duplicated between color-picker.ts and swatch-grid.ts.",
+      "actionItems": [
+        "Extract shared functions into proper utility modules",
+        "Remove duplicates from their original locations"
+      ]
+    },
+    {
+      "id": "REV-033",
+      "title": "Fix hardcoded model strings scattered across codebase",
+      "gate": "review-5",
+      "severity": "minor",
+      "priority": "P2",
+      "status": "pending",
+      "files": ["src/ui/components/chat-panel.ts", "src/ui/services/claude.ts", "src/ui/components/chat-input.ts", "src/ui/components/settings-panel.ts"],
+      "description": "Model IDs hardcoded in multiple places: chat-panel.ts:620 uses 'claude-haiku-4-5-20251001' for suggestions, claude.ts:121 uses 'claude-sonnet-4-20250514' for validation. chat-input.ts:44-47 and settings-panel.ts:17-20 have duplicate model lists with different label formats ('Sonnet' vs 'Sonnet 4').",
+      "actionItems": [
+        "Create a single shared MODEL_CONFIG constant with all model IDs and display labels",
+        "Reference it from all locations"
+      ]
+    },
+    {
+      "id": "REV-034",
+      "title": "Fix VERSION hardcoded as '0.1.0' in settings-panel",
+      "gate": "review-5",
+      "severity": "minor",
+      "priority": "P2",
+      "status": "pending",
+      "files": ["src/ui/components/settings-panel.ts"],
+      "description": "settings-panel.ts:22: VERSION is hardcoded as '0.1.0'. Should be injected at build time from package.json.",
+      "actionItems": [
+        "Read version from package.json in build.ts and inject as a constant",
+        "Or use a build-time replacement plugin"
+      ]
+    },
+    {
+      "id": "REV-035",
+      "title": "Rewrite test suite — replace source-grep tests with behavioral tests",
+      "gate": "review-6",
+      "severity": "critical",
+      "priority": "P0",
+      "status": "pending",
+      "files": ["tests/"],
+      "description": "~90% of the 1,369 tests use `readFileSync` + `expect(source).toContain('function name')` — they verify string presence in source code, not behavior. They cannot detect bugs, cannot detect regressions, create false confidence (1,313 'passing' tests with near-zero behavioral coverage), and are brittle to cosmetic refactors. 56 tests are currently FAILING because source was refactored. Key modules with ZERO behavioral coverage: ClaudeService, MemoryService, NetworkService, ResponseCache, ToolRegistry, all tool handlers, all UI components, all analyzers.",
+      "actionItems": [
+        "Delete all source-grep tests",
+        "Write behavioral tests that import functions, call them, and assert on outputs",
+        "Prioritize tests for: safety.ts, executor.ts, conversation.ts, agentic-loop.ts, prompt-builder.ts, bridge.ts",
+        "For UI components, use @open-wc/testing or similar for DOM testing",
+        "Fix the 56 currently-failing tests or delete them"
+      ]
+    },
+    {
+      "id": "REV-036",
+      "title": "Consolidate duplicate TypeScript compilation tests into CI step",
+      "gate": "review-6",
+      "severity": "major",
+      "priority": "P1",
+      "status": "pending",
+      "files": ["tests/"],
+      "description": "11+ test files each independently run `spawnSync('npx', ['tsc', ...])` against the same tsconfigs. Each invocation takes seconds. A single CI step of `bun tsc -p tsconfig.plugin.json --noEmit && bun tsc -p tsconfig.ui.json --noEmit` replaces all of them.",
+      "actionItems": [
+        "Remove all per-file tsc compilation tests",
+        "Add a single CI/pre-commit step for type checking",
+        "Replace all `npx` with `bun` per project conventions"
+      ]
+    },
+    {
+      "id": "REV-037",
+      "title": "Fix test isolation — shared mutable globalThis state",
+      "gate": "review-6",
+      "severity": "major",
+      "priority": "P1",
+      "status": "pending",
+      "files": ["tests/gap-fixes.test.ts", "tests/build.test.ts"],
+      "description": "gap-fixes.test.ts:648-651 mutates globalThis (adds window/parent stubs) and never cleans up. build.test.ts:11-16 deletes the dist/ directory and runs a full build in beforeAll — all tests share the build output. If tests run in different order, behavior changes.",
+      "actionItems": [
+        "Use beforeEach/afterEach to save and restore globalThis mutations",
+        "Isolate build tests or move to integration test suite",
+        "Add cleanup for all global state modifications"
+      ]
+    },
+    {
+      "id": "REV-038",
+      "title": "Replace npx with bun in all test files",
+      "gate": "review-6",
+      "severity": "critical",
+      "priority": "P0",
+      "status": "pending",
+      "files": ["tests/design-system.test.ts", "tests/claude-service.test.ts", "tests/network.test.ts", "tests/tool-dispatch.test.ts", "tests/chat-message.test.ts", "tests/bridge.test.ts", "tests/settings-panel.test.ts", "tests/conversation.test.ts", "tests/app-state.test.ts", "tests/context.test.ts", "tests/executor.test.ts"],
+      "description": "Project rules say 'use bun for everything. Never use npx.' Yet 11+ test files use spawnSync('npx', ['tsc', ...]). This violates project conventions and introduces npm as a dependency.",
+      "actionItems": [
+        "Replace all spawnSync('npx', ...) with bun equivalents",
+        "Or remove these tests entirely per REV-036"
+      ]
+    },
+    {
+      "id": "REV-039",
+      "title": "Fix build.ts using npx instead of bun",
+      "gate": "review-7",
+      "severity": "critical",
+      "priority": "P0",
+      "status": "pending",
+      "files": ["build.ts"],
+      "description": "build.ts:39 uses `spawnSync('npx', ['tsc', ...])`. The project explicitly states 'use bun for everything. Never use npx.' This should use bun or reference local node_modules/.bin/tsc directly.",
+      "actionItems": [
+        "Replace 'npx' with 'bun' or 'bunx' in build.ts"
+      ]
+    },
+    {
+      "id": "REV-040",
+      "title": "Fix tsconfig.plugin.json ES2015 target with ES2021 lib mismatch",
+      "gate": "review-7",
+      "severity": "critical",
+      "priority": "P0",
+      "status": "pending",
+      "files": ["tsconfig.plugin.json"],
+      "description": "tsconfig.plugin.json targets ES2015 but uses ES2021 lib. Code can use ES2021 APIs (Promise.allSettled, String.replaceAll, WeakRef) that typecheck fine but throw ReferenceError at runtime if the Figma sandbox doesn't polyfill them. Syntax can be downleveled but built-in APIs cannot.",
+      "actionItems": [
+        "Either raise target to ES2021 (if Figma sandbox supports it — it does, it runs V8)",
+        "Or lower lib to match target at ES2015",
+        "Verify Figma's sandbox JS engine version to determine safe target"
+      ]
+    },
+    {
+      "id": "REV-041",
+      "title": "Fix .gitignore missing critical entries",
+      "gate": "review-7",
+      "severity": "major",
+      "priority": "P0",
+      "status": "pending",
+      "files": [".gitignore"],
+      "description": "Missing: (1) .env / *.env — API keys could be committed. (2) src/ui/services/acra-md.ts — auto-generated by build.ts, should not be tracked. (3) .acra/settings.json — contains user-specific settings (model preference) and is tracked (shows as modified in git status).",
+      "actionItems": [
+        "Add .env, *.env, .env.* to .gitignore",
+        "Add src/ui/services/acra-md.ts to .gitignore",
+        "Untrack .acra/settings.json (git rm --cached) and add to .gitignore",
+        "Consider ignoring .ralph/ entirely instead of specific subpaths"
+      ]
+    },
+    {
+      "id": "REV-042",
+      "title": "Fix misleading tsconfig values overridden by build script",
+      "gate": "review-7",
+      "severity": "major",
+      "priority": "P1",
+      "status": "pending",
+      "files": ["tsconfig.plugin.json", "tsconfig.ui.json", "build.ts"],
+      "description": "Both tsconfigs set declaration: true, declarationMap: true, composite: true, but build.ts immediately overrides all three to false via CLI flags. The tsconfig values are misleading — they only matter for IDE type checking, not the actual build.",
+      "actionItems": [
+        "Set declaration/declarationMap/composite to false in the tsconfigs",
+        "Remove the CLI overrides from build.ts",
+        "Or document why the tsconfig values differ from build behavior"
+      ]
+    },
+    {
+      "id": "REV-043",
+      "title": "Fix stale lock file and project name",
+      "gate": "review-7",
+      "severity": "major",
+      "priority": "P1",
+      "status": "pending",
+      "files": ["bun.lock", "package.json"],
+      "description": "bun.lock:7 still has name 'ghosti' despite the project being renamed to 'acra'. The lock file may be stale in other ways. The dev script uses shell & for backgrounding which is unreliable (no supervision, Ctrl+C doesn't kill background process, fails on Windows).",
+      "actionItems": [
+        "Run `bun install` to regenerate the lock file with correct project name",
+        "Consider using `concurrently` or similar for the dev script"
+      ]
+    },
+    {
+      "id": "REV-044",
+      "title": "Replace ARCHITECTURE.md with actual architecture documentation",
+      "gate": "review-7",
+      "severity": "critical",
+      "priority": "P1",
+      "status": "pending",
+      "files": ["ARCHITECTURE.md"],
+      "description": "ARCHITECTURE.md is a planning/review document, not architecture documentation. It contains speculative interfaces, references a specific developer's local file paths, and describes files as 'to be created' when they already exist. A developer opening this to understand the codebase will be misled.",
+      "actionItems": [
+        "Rewrite as a genuine architecture overview of the as-built codebase",
+        "Remove absolute local paths",
+        "Document the actual module boundaries, data flow, and key design decisions"
+      ]
+    },
+    {
+      "id": "REV-045",
+      "title": "Fix global CSS invisible inside Shadow DOM",
+      "gate": "review-8",
+      "severity": "critical",
+      "priority": "P1",
+      "status": "pending",
+      "files": ["src/ui/styles/utilities.css", "src/ui/styles/typography.css", "src/ui/styles/animations.css"],
+      "description": "All Lit components use Shadow DOM. The global CSS files (utilities.css, typography.css, animations.css) are injected into the <head> of the main document. CSS classes in the light DOM do NOT penetrate shadow DOM boundaries. All utility classes (.flex, .gap-4, .p-2, .truncate, .text-sm, .animate-fade-in etc.) are dead CSS — hundreds of lines shipped in the bundle but unused.",
+      "actionItems": [
+        "Delete the dead CSS files if components define their own styles",
+        "Or convert to Lit CSSResult modules that components can import via adoptedStyleSheets",
+        "Or switch to constructable stylesheets that work with Shadow DOM"
+      ]
+    },
+    {
+      "id": "REV-046",
+      "title": "Fix duplicate CSS rules: reduced-motion, focus-visible, border tokens",
+      "gate": "review-8",
+      "severity": "major",
+      "priority": "P1",
+      "status": "pending",
+      "files": ["src/ui/styles/tokens.css", "src/ui/styles/animations.css", "src/ui/styles/reset.css"],
+      "description": "Duplicate prefers-reduced-motion blocks in tokens.css:185-190 and animations.css:220-229 (animations.css is more complete). Duplicate :focus-visible rules in tokens.css:177-180 and reset.css:163-168 using different variables (--acra-color-accent vs --acra-color-focus), different offsets (2px vs 1px). --acra-color-border and --acra-color-border-subtle both resolve to --figma-color-border inside Figma (semantic distinction only exists in fallbacks).",
+      "actionItems": [
+        "Remove duplicate reduced-motion block from tokens.css",
+        "Consolidate focus-visible rules into a single location with one variable",
+        "Fix border token to use a different Figma variable or hardcode the subtle variant"
+      ]
+    },
+    {
+      "id": "REV-047",
+      "title": "Fix ui.html missing lang, charset, and viewport meta",
+      "gate": "review-8",
+      "severity": "major",
+      "priority": "P0",
+      "status": "pending",
+      "files": ["src/ui/ui.html"],
+      "description": "Missing `lang='en'` attribute on <html> (WCAG 2.1 Level A failure). Missing <meta charset='utf-8'> (risk of mojibake with non-ASCII AI responses in an iframe with no HTTP headers). Claims WCAG 2.1 AA compliance but violates Level A.",
+      "actionItems": [
+        "Add lang='en' to <html>",
+        "Add <meta charset='utf-8'> to <head>",
+        "Add <meta name='viewport' content='width=device-width, initial-scale=1'>"
+      ]
+    },
+    {
+      "id": "REV-048",
+      "title": "Fix accessibility issues: sr-only, aria-pressed, nested button",
+      "gate": "review-8",
+      "severity": "major",
+      "priority": "P1",
+      "status": "pending",
+      "files": ["src/ui/components/shared/typing-indicator.ts", "src/ui/components/shared/segmented-control.ts", "src/ui/components/conversation-list.ts"],
+      "description": "typing-indicator.ts:49: .sr-only class referenced but never defined — 'Acra is typing' renders as visible text. segmented-control.ts:87: aria-pressed used on role='radio' buttons (should be aria-checked). conversation-list.ts:362-384: nested <button> inside <button> — invalid HTML with undefined click behavior across browsers.",
+      "actionItems": [
+        "Add .sr-only styles to typing-indicator",
+        "Change aria-pressed to aria-checked in segmented-control",
+        "Change .conv-item from <button> to <div role='option' tabindex='0'> in conversation-list"
+      ]
+    },
+    {
+      "id": "REV-049",
+      "title": "Fix settings panel polling even when closed",
+      "gate": "review-8",
+      "severity": "major",
+      "priority": "P1",
+      "status": "pending",
+      "files": ["src/ui/components/settings-panel.ts"],
+      "description": "settings-panel.ts:327-330: connectedCallback starts 60s health polling. The component is always in the DOM (rendered unconditionally by acra-app.ts). Polling runs even when the settings drawer is hidden via CSS transform.",
+      "actionItems": [
+        "Start/stop polling based on the 'open' property, not lifecycle hooks",
+        "Or lazily render settings-panel only when the drawer is open"
+      ]
+    },
+    {
+      "id": "REV-050",
+      "title": "Fix link-card double-fetch on initial render",
+      "gate": "review-8",
+      "severity": "major",
+      "priority": "P2",
+      "status": "pending",
+      "files": ["src/ui/components/shared/link-card.ts"],
+      "description": "link-card.ts:262-269: connectedCallback calls _fetchPreview() if url is set, and willUpdate also calls _fetchPreview() when url changes. On first render with url already set, both fire, causing two concurrent fetches.",
+      "actionItems": [
+        "Remove the connectedCallback fetch — willUpdate covers all cases including initial render"
+      ]
+    },
+    {
+      "id": "REV-051",
+      "title": "Fix unbounded memory growth in pattern cache and other maps",
+      "gate": "review-9",
+      "severity": "major",
+      "priority": "P1",
+      "status": "pending",
+      "files": ["src/ui/services/memory.ts", "src/ui/services/network.ts", "src/ui/services/render-scheduler.ts"],
+      "description": "memory.ts:38: patternCache is a Map that only grows (entries have TTL check on read but stale entries never removed). network.ts:107: lastRequestByHost Map grows without eviction. render-scheduler.ts: _idleTimers array grows unboundedly. network.ts:115-116: window event listeners use arrow functions, can never be removed.",
+      "actionItems": [
+        "Add periodic cleanup or LRU eviction to patternCache",
+        "Add max size or periodic cleanup to lastRequestByHost",
+        "Remove completed entries from _idleTimers",
+        "Consider adding dispose() methods to all singleton services"
+      ]
+    },
+    {
+      "id": "REV-052",
+      "title": "Fix missing persistence for autoLearn, memoryOrgId, memoryDesignSystem settings",
+      "gate": "review-9",
+      "severity": "minor",
+      "priority": "P2",
+      "status": "pending",
+      "files": ["src/ui/state/persistence.ts", "src/ui/state/types.ts"],
+      "description": "autoLearn, memoryOrgId, memoryDesignSystem exist in AppStateShape but are not in PERSISTED_KEYS. They reset to defaults on plugin reload.",
+      "actionItems": [
+        "Add autoLearn, memoryOrgId, memoryDesignSystem to PERSISTED_KEYS"
+      ]
+    },
+    {
+      "id": "REV-053",
+      "title": "Fix memoryEndpoint defaulting to localhost",
+      "gate": "review-9",
+      "severity": "minor",
+      "priority": "P2",
+      "status": "pending",
+      "files": ["src/ui/state/types.ts"],
+      "description": "INITIAL_STATE.memoryEndpoint defaults to 'http://localhost:3784'. Every new user will have the plugin trying to connect to a local server they likely don't have running, causing network errors on every prompt build.",
+      "actionItems": [
+        "Default memoryEndpoint to null or empty string",
+        "Only attempt Vestige connections when explicitly configured"
+      ]
+    },
+    {
+      "id": "REV-054",
+      "title": "Fix offline queue infinite retry loop",
+      "gate": "review-9",
+      "severity": "minor",
+      "priority": "P2",
+      "status": "pending",
+      "files": ["src/ui/services/offline-queue.ts"],
+      "description": "offline-queue.ts:81-97: When flush is called and a request fails, the item is pushed back into the queue. When network returns, flush is called again — potentially creating infinite retry for permanently failed requests. No max-retry counter or exponential backoff per item.",
+      "actionItems": [
+        "Add a retry counter per queue item",
+        "Drop items after max retries (e.g., 3)",
+        "Add exponential backoff"
+      ]
+    },
+    {
+      "id": "REV-055",
+      "title": "Fix thinking block double-emission and screenshot sent as text",
+      "gate": "review-9",
+      "severity": "minor",
+      "priority": "P2",
+      "status": "pending",
+      "files": ["src/ui/services/claude.ts", "src/ui/services/agentic-loop.ts"],
+      "description": "claude.ts:166-169: The contentBlock event fires with the completed thinking block AND onThinkingDelta streams individual deltas — thinking content may be duplicated. agentic-loop.ts:299-304: Screenshots returned as JSON-stringified text strings rather than ImageBlock content, so Claude receives image data as text not as a vision-capable image.",
+      "actionItems": [
+        "Verify thinking block emission path to prevent duplication",
+        "Convert screenshot tool results to proper ImageBlock format for Claude"
+      ]
+    },
+    {
+      "id": "REV-056",
+      "title": "Fix usage-analyzer cache keyed on node count alone",
+      "gate": "review-9",
+      "severity": "minor",
+      "priority": "P2",
+      "status": "pending",
+      "files": ["src/plugin/usage-analyzer.ts"],
+      "description": "usage-analyzer.ts:63: Cache validity check uses `cache.nodeCount === nodes.length && cache.topLevelChildCount === topLevelCount`. If user deletes one node and adds another, counts are identical but content has changed — stale data returned.",
+      "actionItems": [
+        "Add a version counter or content hash for more reliable cache invalidation"
+      ]
+    },
+    {
+      "id": "REV-057",
+      "title": "Fix search handler independent 30s cache not invalidated on document changes",
+      "gate": "review-9",
+      "severity": "minor",
+      "priority": "P2",
+      "status": "pending",
+      "files": ["src/plugin/handlers/search-handler.ts"],
+      "description": "search-handler.ts:17-22: Maintains its own cache with 30s TTL, independent of all other caches. Document changes don't invalidate it. If user adds a component and searches, they may not find it for up to 30 seconds.",
+      "actionItems": [
+        "Wire search cache invalidation to the documentchange event in code.ts",
+        "Or use the same invalidation mechanism as the usage analyzer"
+      ]
+    },
+    {
+      "id": "REV-058",
+      "title": "Fix chat-container requestUpdate on every scroll event",
+      "gate": "review-9",
+      "severity": "major",
+      "priority": "P1",
+      "status": "pending",
+      "files": ["src/ui/components/chat-container.ts"],
+      "description": "chat-container.ts:109-111: When message count exceeds 50 (virtualization threshold), _onScroll calls requestUpdate() on every scroll event. This triggers a full Lit render cycle per scroll frame at 60+ fps, causing jank.",
+      "actionItems": [
+        "Throttle or debounce the scroll handler using requestAnimationFrame",
+        "Only requestUpdate when the visible range actually changes"
+      ]
+    },
+    {
+      "id": "REV-059",
+      "title": "Fix ErrorHandler double-installation risk",
+      "gate": "review-9",
+      "severity": "minor",
+      "priority": "P2",
+      "status": "pending",
+      "files": ["src/ui/services/error-handler.ts"],
+      "description": "error-handler.ts:72-89: installGlobalHandlers() uses anonymous arrow functions with no guard against double-installation. If called twice, errors are reported twice. No cleanup mechanism exists.",
+      "actionItems": [
+        "Add a guard flag to prevent double-installation",
+        "Store listener references for potential cleanup"
+      ]
+    },
+    {
+      "id": "REV-060",
+      "title": "Fix conversation store non-atomic save operation",
+      "gate": "review-9",
+      "severity": "minor",
+      "priority": "P2",
+      "status": "pending",
+      "files": ["src/ui/services/conversation-store.ts"],
+      "description": "conversation-store.ts:91-141: save() performs 4 separate storage operations (save data, load index, mutate index, save index). If the plugin crashes between operations, the index will be stale — classic TOCTOU issue.",
+      "actionItems": [
+        "Combine index update and data save into an atomic operation",
+        "Or add recovery logic that reconciles stale indices on startup"
+      ]
+    }
+  ]
+}
