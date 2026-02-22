@@ -1,21 +1,21 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# ─── Ralph PRD Generator ────────────────────────────────────────
-# Generates .ralph/prd.json from specification documents.
+# ─── Loom PRD Generator ────────────────────────────────────────
+# Generates .loom/prd.json from specification documents.
 # Wraps `claude -p` with a structured generation prompt.
 #
 # Usage:
-#   ralph-prd.sh <files...> [--append] [--prefix PREFIX] [--max N]
-#   ralph-prd.sh spec.md sketch.md
-#   ralph-prd.sh --append planning-session-02.md
-#   ralph-prd.sh --prefix SCP spec.md
+#   loom-prd.sh <files...> [--append] [--prefix PREFIX] [--max N]
+#   loom-prd.sh spec.md sketch.md
+#   loom-prd.sh --append planning-session-02.md
+#   loom-prd.sh --prefix SCP spec.md
 # ─────────────────────────────────────────────────────────────────
 
-RALPH_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_DIR="$(dirname "$RALPH_DIR")"
+LOOM_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_DIR="$(dirname "$LOOM_DIR")"
 PROJECT_NAME="$(basename "$PROJECT_DIR")"
-PRD_FILE="$RALPH_DIR/prd.json"
+PRD_FILE="$LOOM_DIR/prd.json"
 
 # Colors
 RED='\033[0;31m'
@@ -52,9 +52,9 @@ while [[ $# -gt 0 ]]; do
       ;;
     -h|--help)
       cat <<'EOF'
-Usage: ralph-prd.sh <files...> [OPTIONS]
+Usage: loom-prd.sh <files...> [OPTIONS]
 
-Generates .ralph/prd.json from specification documents using Claude.
+Generates .loom/prd.json from specification documents using Claude.
 
 Arguments:
   <files...>            One or more files to ingest (specs, planning docs, etc.)
@@ -66,10 +66,10 @@ Options:
   -h, --help            Show this help
 
 Examples:
-  ralph-prd.sh spec.md sketch.md
-  ralph-prd.sh --append planning-session-02.md
-  ralph-prd.sh --prefix SCP --max 60 spec.md
-  ralph-prd.sh *.md
+  loom-prd.sh spec.md sketch.md
+  loom-prd.sh --append planning-session-02.md
+  loom-prd.sh --prefix SCP --max 60 spec.md
+  loom-prd.sh *.md
 EOF
       exit 0
       ;;
@@ -100,7 +100,7 @@ fi
 command -v claude &>/dev/null || die "claude CLI not found in PATH"
 command -v jq &>/dev/null || die "jq is required"
 
-echo -e "${CYAN}${BOLD}Ralph PRD Generator${NC}"
+echo -e "${CYAN}${BOLD}Loom PRD Generator${NC}"
 echo -e "${DIM}─────────────────────────────────────────${NC}"
 echo -e "  ${DIM}Project${NC}  $PROJECT_NAME"
 echo -e "  ${DIM}Prefix${NC}   $PREFIX"
@@ -110,7 +110,7 @@ echo -e "  ${DIM}Mode${NC}     $(if $APPEND; then echo "append"; else echo "crea
 echo ""
 
 # ─── Build prompt ────────────────────────────────────────────────
-PROMPT="You are a PRD generator for the Ralph autonomous development system. Your job is to read specification documents and produce a structured prd.json file.
+PROMPT="You are a PRD generator for the Loom autonomous development system. Your job is to read specification documents and produce a structured prd.json file.
 
 ## Input Files
 
@@ -141,7 +141,7 @@ fi
 
 PROMPT+="## Output Requirements
 
-Generate a COMPLETE, VALID JSON object for .ralph/prd.json. Output ONLY the JSON — no markdown fences, no commentary, no explanation.
+Generate a COMPLETE, VALID JSON object for .loom/prd.json. Output ONLY the JSON — no markdown fences, no commentary, no explanation.
 
 ### Schema
 

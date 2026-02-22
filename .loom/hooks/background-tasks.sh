@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# ─── Ralph Background Task Launcher ────────────────────────────
-# Forces all Task tool calls to run in background during Ralph
+# ─── Loom Background Task Launcher ────────────────────────────
+# Forces all Task tool calls to run in background during Loom
 # loops. The orchestrator dispatches subagents and continues —
 # results are delivered automatically on the next turn.
-# Only active inside a Ralph loop (RALPH_ACTIVE=1).
+# Only active inside a Loom loop (LOOM_ACTIVE=1).
 # ─────────────────────────────────────────────────────────────────
 
-# No-op outside Ralph
-[ "$RALPH_ACTIVE" != "1" ] && exit 0
+# No-op outside Loom
+[ "$LOOM_ACTIVE" != "1" ] && exit 0
 
 INPUT=$(cat)
 

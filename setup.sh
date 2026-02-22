@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# ─── Ralph Setup ─────────────────────────────────────────────────
-# Installs Ralph into a project directory. Can be run from:
-#   1. Inside the Ralph repo:  ./setup.sh /path/to/my-project
-#   2. After cloning into a project:  .ralph/setup.sh (no args)
+# ─── Loom Setup ─────────────────────────────────────────────────
+# Installs Loom into a project directory. Can be run from:
+#   1. Inside the Loom repo:  ./setup.sh /path/to/my-project
+#   2. After cloning into a project:  .loom/setup.sh (no args)
 #   3. Via curl:  curl -fsSL <url>/setup.sh | bash -s -- /path/to/project
 # ─────────────────────────────────────────────────────────────────
 
@@ -21,17 +21,17 @@ die() { echo -e "${RED}Error: $1${NC}" >&2; exit 1; }
 # ─── Resolve source and target ──────────────────────────────────
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Determine where Ralph's source files live
-if [ -d "$SCRIPT_DIR/.ralph" ]; then
-  # Running from Ralph repo root (./setup.sh)
-  RALPH_SOURCE="$SCRIPT_DIR/.ralph"
+# Determine where Loom's source files live
+if [ -d "$SCRIPT_DIR/.loom" ]; then
+  # Running from Loom repo root (./setup.sh)
+  LOOM_SOURCE="$SCRIPT_DIR/.loom"
   SKILLS_SOURCE="$SCRIPT_DIR/.claude/skills"
-elif [ -d "$SCRIPT_DIR/../.ralph" ]; then
-  # setup.sh might be inside .ralph/
-  RALPH_SOURCE="$SCRIPT_DIR"
+elif [ -d "$SCRIPT_DIR/../.loom" ]; then
+  # setup.sh might be inside .loom/
+  LOOM_SOURCE="$SCRIPT_DIR"
   SKILLS_SOURCE=""
 else
-  die "Cannot find Ralph source files. Run this script from the Ralph repository root."
+  die "Cannot find Loom source files. Run this script from the Loom repository root."
 fi
 
 # Determine target project directory
@@ -42,10 +42,10 @@ else
   TARGET_DIR="$(pwd)"
 fi
 
-# Safety check: don't install Ralph into the Ralph repo itself
-if [ "$TARGET_DIR" = "$SCRIPT_DIR" ] && [ -d "$SCRIPT_DIR/.ralph" ]; then
-  echo -e "${GREEN}Ralph is already set up in this directory.${NC}"
-  echo -e "Run ${BOLD}.ralph/ralph.sh --help${NC} to get started."
+# Safety check: don't install Loom into the Loom repo itself
+if [ "$TARGET_DIR" = "$SCRIPT_DIR" ] && [ -d "$SCRIPT_DIR/.loom" ]; then
+  echo -e "${GREEN}Loom is already set up in this directory.${NC}"
+  echo -e "Run ${BOLD}.loom/loom.sh --help${NC} to get started."
   exit 0
 fi
 
@@ -54,7 +54,7 @@ echo "  ╔═══════════════════════
 echo "  ║          R A L P H   S E T U P            ║"
 echo "  ╚═══════════════════════════════════════════╝"
 echo -e "${NC}"
-echo -e "  ${DIM}Source${NC}  $RALPH_SOURCE"
+echo -e "  ${DIM}Source${NC}  $LOOM_SOURCE"
 echo -e "  ${DIM}Target${NC}  $TARGET_DIR"
 echo ""
 
@@ -84,8 +84,8 @@ if [ ${#MISSING[@]} -gt 0 ]; then
 fi
 
 # ─── Check for existing installation ────────────────────────────
-if [ -d "$TARGET_DIR/.ralph" ]; then
-  echo -e "${YELLOW}Ralph is already installed in $TARGET_DIR${NC}"
+if [ -d "$TARGET_DIR/.loom" ]; then
+  echo -e "${YELLOW}Loom is already installed in $TARGET_DIR${NC}"
   echo -e "  Overwrite? This will reset prd.json and status.md."
   read -r -p "  Continue? [y/N] " REPLY
   if [[ ! "$REPLY" =~ ^[Yy]$ ]]; then
@@ -95,67 +95,67 @@ if [ -d "$TARGET_DIR/.ralph" ]; then
   echo ""
 fi
 
-# ─── Copy Ralph files ───────────────────────────────────────────
-echo -e "${CYAN}Installing Ralph...${NC}"
+# ─── Copy Loom files ───────────────────────────────────────────
+echo -e "${CYAN}Installing Loom...${NC}"
 
 # Core directory
-mkdir -p "$TARGET_DIR/.ralph/hooks"
-mkdir -p "$TARGET_DIR/.ralph/specs"
-mkdir -p "$TARGET_DIR/.ralph/logs"
+mkdir -p "$TARGET_DIR/.loom/hooks"
+mkdir -p "$TARGET_DIR/.loom/specs"
+mkdir -p "$TARGET_DIR/.loom/logs"
 
 # Copy scripts
-cp "$RALPH_SOURCE/ralph.sh"        "$TARGET_DIR/.ralph/ralph.sh"
-cp "$RALPH_SOURCE/ralph-status.sh" "$TARGET_DIR/.ralph/ralph-status.sh"
-cp "$RALPH_SOURCE/ralph-prd.sh"    "$TARGET_DIR/.ralph/ralph-prd.sh"
-cp "$RALPH_SOURCE/stop.sh"         "$TARGET_DIR/.ralph/stop.sh"
-cp "$RALPH_SOURCE/prompt.md"       "$TARGET_DIR/.ralph/prompt.md"
-cp "$RALPH_SOURCE/directive.md"    "$TARGET_DIR/.ralph/directive.md"
+cp "$LOOM_SOURCE/loom.sh"        "$TARGET_DIR/.loom/loom.sh"
+cp "$LOOM_SOURCE/loom-status.sh" "$TARGET_DIR/.loom/loom-status.sh"
+cp "$LOOM_SOURCE/loom-prd.sh"    "$TARGET_DIR/.loom/loom-prd.sh"
+cp "$LOOM_SOURCE/stop.sh"         "$TARGET_DIR/.loom/stop.sh"
+cp "$LOOM_SOURCE/prompt.md"       "$TARGET_DIR/.loom/prompt.md"
+cp "$LOOM_SOURCE/directive.md"    "$TARGET_DIR/.loom/directive.md"
 
 # Copy hooks
-for hook in "$RALPH_SOURCE/hooks/"*.sh; do
-  [ -f "$hook" ] && cp "$hook" "$TARGET_DIR/.ralph/hooks/"
+for hook in "$LOOM_SOURCE/hooks/"*.sh; do
+  [ -f "$hook" ] && cp "$hook" "$TARGET_DIR/.loom/hooks/"
 done
 
 # Copy template files (don't overwrite existing project files)
-if [ ! -f "$TARGET_DIR/.ralph/prd.json" ] || [ -s "$TARGET_DIR/.ralph/prd.json" ] && grep -q "EXAMPLE-001" "$TARGET_DIR/.ralph/prd.json" 2>/dev/null; then
-  cp "$RALPH_SOURCE/prd.json" "$TARGET_DIR/.ralph/prd.json"
+if [ ! -f "$TARGET_DIR/.loom/prd.json" ] || [ -s "$TARGET_DIR/.loom/prd.json" ] && grep -q "EXAMPLE-001" "$TARGET_DIR/.loom/prd.json" 2>/dev/null; then
+  cp "$LOOM_SOURCE/prd.json" "$TARGET_DIR/.loom/prd.json"
 fi
 
-if [ ! -f "$TARGET_DIR/.ralph/status.md" ] || grep -q "No iterations run yet" "$TARGET_DIR/.ralph/status.md" 2>/dev/null; then
-  cp "$RALPH_SOURCE/status.md" "$TARGET_DIR/.ralph/status.md"
+if [ ! -f "$TARGET_DIR/.loom/status.md" ] || grep -q "No iterations run yet" "$TARGET_DIR/.loom/status.md" 2>/dev/null; then
+  cp "$LOOM_SOURCE/status.md" "$TARGET_DIR/.loom/status.md"
 fi
 
-if [ ! -f "$TARGET_DIR/.ralph/specs/TICKETS.md" ]; then
-  cp "$RALPH_SOURCE/specs/TICKETS.md" "$TARGET_DIR/.ralph/specs/TICKETS.md"
+if [ ! -f "$TARGET_DIR/.loom/specs/TICKETS.md" ]; then
+  cp "$LOOM_SOURCE/specs/TICKETS.md" "$TARGET_DIR/.loom/specs/TICKETS.md"
 fi
 
 # Make scripts executable
-chmod +x "$TARGET_DIR/.ralph/ralph.sh"
-chmod +x "$TARGET_DIR/.ralph/ralph-status.sh"
-chmod +x "$TARGET_DIR/.ralph/ralph-prd.sh"
-chmod +x "$TARGET_DIR/.ralph/stop.sh"
-chmod +x "$TARGET_DIR/.ralph/hooks/"*.sh
+chmod +x "$TARGET_DIR/.loom/loom.sh"
+chmod +x "$TARGET_DIR/.loom/loom-status.sh"
+chmod +x "$TARGET_DIR/.loom/loom-prd.sh"
+chmod +x "$TARGET_DIR/.loom/stop.sh"
+chmod +x "$TARGET_DIR/.loom/hooks/"*.sh
 
-echo -e "  ${GREEN}✓${NC} Copied .ralph/ directory"
+echo -e "  ${GREEN}✓${NC} Copied .loom/ directory"
 
 # ─── Install Claude Code skills ──────────────────────────────────
-mkdir -p "$TARGET_DIR/.claude/skills/ralph"
+mkdir -p "$TARGET_DIR/.claude/skills/loom"
 mkdir -p "$TARGET_DIR/.claude/skills/prd"
 
 if [ -n "$SKILLS_SOURCE" ] && [ -d "$SKILLS_SOURCE" ]; then
-  cp "$SKILLS_SOURCE/ralph/SKILL.md" "$TARGET_DIR/.claude/skills/ralph/SKILL.md"
+  cp "$SKILLS_SOURCE/loom/SKILL.md" "$TARGET_DIR/.claude/skills/loom/SKILL.md"
   cp "$SKILLS_SOURCE/prd/SKILL.md"   "$TARGET_DIR/.claude/skills/prd/SKILL.md"
 else
-  if [ ! -f "$TARGET_DIR/.claude/skills/ralph/SKILL.md" ]; then
-    die "Could not find skill sources. Copy them manually from the Ralph repo."
+  if [ ! -f "$TARGET_DIR/.claude/skills/loom/SKILL.md" ]; then
+    die "Could not find skill sources. Copy them manually from the Loom repo."
   fi
 fi
 
 # Remove old commands if migrating from a previous install
-rm -f "$TARGET_DIR/.claude/commands/ralph.md" "$TARGET_DIR/.claude/commands/prd.md"
+rm -f "$TARGET_DIR/.claude/commands/loom.md" "$TARGET_DIR/.claude/commands/prd.md"
 rmdir "$TARGET_DIR/.claude/commands" 2>/dev/null || true
 
-echo -e "  ${GREEN}✓${NC} Installed /ralph and /prd skills"
+echo -e "  ${GREEN}✓${NC} Installed /loom and /prd skills"
 
 # ─── Configure Claude Code hooks ────────────────────────────────
 SETTINGS_FILE="$TARGET_DIR/.claude/settings.local.json"
@@ -169,7 +169,7 @@ HOOKS_JSON='{
         "hooks": [
           {
             "type": "command",
-            "command": ".ralph/hooks/background-tasks.sh"
+            "command": ".loom/hooks/background-tasks.sh"
           }
         ]
       },
@@ -178,7 +178,7 @@ HOOKS_JSON='{
         "hooks": [
           {
             "type": "command",
-            "command": ".ralph/hooks/bash-guard.sh"
+            "command": ".loom/hooks/bash-guard.sh"
           }
         ]
       },
@@ -187,7 +187,7 @@ HOOKS_JSON='{
         "hooks": [
           {
             "type": "command",
-            "command": ".ralph/hooks/block-interactive.sh"
+            "command": ".loom/hooks/block-interactive.sh"
           }
         ]
       },
@@ -196,7 +196,7 @@ HOOKS_JSON='{
         "hooks": [
           {
             "type": "command",
-            "command": ".ralph/hooks/block-interactive.sh"
+            "command": ".loom/hooks/block-interactive.sh"
           }
         ]
       },
@@ -205,7 +205,7 @@ HOOKS_JSON='{
         "hooks": [
           {
             "type": "command",
-            "command": ".ralph/hooks/block-task-output.sh"
+            "command": ".loom/hooks/block-task-output.sh"
           }
         ]
       }
@@ -216,7 +216,7 @@ HOOKS_JSON='{
         "hooks": [
           {
             "type": "command",
-            "command": ".ralph/hooks/status-kill.sh"
+            "command": ".loom/hooks/status-kill.sh"
           }
         ]
       }
@@ -226,7 +226,7 @@ HOOKS_JSON='{
         "hooks": [
           {
             "type": "command",
-            "command": ".ralph/hooks/stop-guard.sh"
+            "command": ".loom/hooks/stop-guard.sh"
           }
         ]
       }
@@ -236,7 +236,7 @@ HOOKS_JSON='{
         "hooks": [
           {
             "type": "command",
-            "command": ".ralph/hooks/subagent-stop-guard.sh"
+            "command": ".loom/hooks/subagent-stop-guard.sh"
           }
         ]
       }
@@ -264,20 +264,20 @@ echo -e "  ${GREEN}✓${NC} Configured Claude Code hooks"
 
 # ─── Update .gitignore ───────────────────────────────────────────
 GITIGNORE="$TARGET_DIR/.gitignore"
-RALPH_IGNORES=(
-  "# Ralph autonomous loop"
-  ".ralph/logs/"
-  ".ralph/.stop"
-  ".ralph/.pid"
-  ".ralph/.directive"
-  ".ralph/.piped_directive"
-  ".ralph/.iteration_marker"
-  ".ralph/ralph.log"
+LOOM_IGNORES=(
+  "# Loom autonomous loop"
+  ".loom/logs/"
+  ".loom/.stop"
+  ".loom/.pid"
+  ".loom/.directive"
+  ".loom/.piped_directive"
+  ".loom/.iteration_marker"
+  ".loom/loom.log"
 )
 
 if [ -f "$GITIGNORE" ]; then
   NEEDS_NEWLINE=true
-  for entry in "${RALPH_IGNORES[@]}"; do
+  for entry in "${LOOM_IGNORES[@]}"; do
     if ! grep -qF "$entry" "$GITIGNORE" 2>/dev/null; then
       if $NEEDS_NEWLINE; then
         echo "" >> "$GITIGNORE"
@@ -287,29 +287,29 @@ if [ -f "$GITIGNORE" ]; then
     fi
   done
 else
-  printf '%s\n' "${RALPH_IGNORES[@]}" > "$GITIGNORE"
+  printf '%s\n' "${LOOM_IGNORES[@]}" > "$GITIGNORE"
 fi
 
 echo -e "  ${GREEN}✓${NC} Updated .gitignore"
 
 # ─── Update CLAUDE.md ───────────────────────────────────────────
 CLAUDEMD="$TARGET_DIR/CLAUDE.md"
-RALPH_SECTION_MARKER="<!-- ralph:begin -->"
-RALPH_SECTION_END="<!-- ralph:end -->"
+LOOM_SECTION_MARKER="<!-- loom:begin -->"
+LOOM_SECTION_END="<!-- loom:end -->"
 
-RALPH_SECTION="$RALPH_SECTION_MARKER
-## Ralph — Autonomous Development Loop
+LOOM_SECTION="$LOOM_SECTION_MARKER
+## Loom — Autonomous Development Loop
 
-Ralph runs Claude Code in a continuous loop: read tasks from a PRD, dispatch parallel subagents, run tests, commit green code, repeat.
+Loom runs Claude Code in a continuous loop: read tasks from a PRD, dispatch parallel subagents, run tests, commit green code, repeat.
 
 \`\`\`
-.ralph/              # Autonomous dev loop — dispatches parallel subagents from a PRD
+.loom/              # Autonomous dev loop — dispatches parallel subagents from a PRD
 ├── prd.json         # Structured stories with gates (P0/P1/P2), deps, acceptance criteria
 ├── prompt.md        # Autonomous iteration instructions (story selection, execution, commit)
 ├── directive.md     # Single-task mode instructions (execute one directive, signal result)
 ├── status.md        # Current iteration state (read at start, written at end of each cycle)
-├── ralph-prd.sh     # Standalone PRD generator (wraps claude -p)
-├── specs/           # Reference specs and ticket tracking for Ralph
+├── loom-prd.sh     # Standalone PRD generator (wraps claude -p)
+├── specs/           # Reference specs and ticket tracking for Loom
 └── hooks/           # Guard rails: stop signals, interactive blocking, subagent limits
 \`\`\`
 
@@ -317,64 +317,64 @@ Ralph runs Claude Code in a continuous loop: read tasks from a PRD, dispatch par
 
 **Stories must be atomic.** Each story is executed by a single subagent in one iteration (~15-30 min). If it can't be done in one shot, split it. Coupled work (model + migration + route) stays together; unrelated work does not.
 
-**Acceptance criteria must be machine-verifiable.** Not \"it works\" but \"POST /api/x returns 200 with a JWT\". If you can't write a test for it, Ralph can't verify it.
+**Acceptance criteria must be machine-verifiable.** Not \"it works\" but \"POST /api/x returns 200 with a JWT\". If you can't write a test for it, Loom can't verify it.
 
 **Parallelism requires file isolation.** Stories that touch the same files cannot run in the same batch. Set \`blockedBy\` for true data dependencies; leave it empty otherwise to maximize parallelism.
 
-**Green tests are a hard gate.** Ralph never commits failing code. Test failures are recorded in status.md and become top priority for the next iteration. After 3 failed fix attempts within one iteration, Ralph stops and records the state.
+**Green tests are a hard gate.** Loom never commits failing code. Test failures are recorded in status.md and become top priority for the next iteration. After 3 failed fix attempts within one iteration, Loom stops and records the state.
 
 **Context is the scarcest resource.** Read prd.json in jq waves of 10. Never cat entire files. Use dedicated tools (Read, Grep, Glob) instead of shell commands. status.md is the only continuity across loop restarts — write it thoroughly.
 
 **Search before building.** Subagents must search the codebase before assuming something is missing. Reimplementing existing code is a common failure mode.
 
 **Scope is sacred.** Implement only the assigned story. Do not \"fix\" adjacent code, add unrequested features, or refactor code that seems inconsistent with other specs.
-$RALPH_SECTION_END"
+$LOOM_SECTION_END"
 
 if [ -f "$CLAUDEMD" ]; then
-  if grep -qF "$RALPH_SECTION_MARKER" "$CLAUDEMD" 2>/dev/null; then
-    # Replace existing Ralph section
+  if grep -qF "$LOOM_SECTION_MARKER" "$CLAUDEMD" 2>/dev/null; then
+    # Replace existing Loom section
     # Use awk to replace content between markers
-    awk -v replacement="$RALPH_SECTION" '
-      /<!-- ralph:begin -->/ { print replacement; skip=1; next }
-      /<!-- ralph:end -->/ { skip=0; next }
+    awk -v replacement="$LOOM_SECTION" '
+      /<!-- loom:begin -->/ { print replacement; skip=1; next }
+      /<!-- loom:end -->/ { skip=0; next }
       !skip { print }
     ' "$CLAUDEMD" > "${CLAUDEMD}.tmp" && mv "${CLAUDEMD}.tmp" "$CLAUDEMD"
-    echo -e "  ${GREEN}✓${NC} Updated Ralph section in CLAUDE.md"
+    echo -e "  ${GREEN}✓${NC} Updated Loom section in CLAUDE.md"
   else
-    # Append Ralph section
-    printf '\n%s\n' "$RALPH_SECTION" >> "$CLAUDEMD"
-    echo -e "  ${GREEN}✓${NC} Added Ralph section to CLAUDE.md"
+    # Append Loom section
+    printf '\n%s\n' "$LOOM_SECTION" >> "$CLAUDEMD"
+    echo -e "  ${GREEN}✓${NC} Added Loom section to CLAUDE.md"
   fi
 else
   # Create new CLAUDE.md
-  printf '%s\n' "$RALPH_SECTION" > "$CLAUDEMD"
-  echo -e "  ${GREEN}✓${NC} Created CLAUDE.md with Ralph section"
+  printf '%s\n' "$LOOM_SECTION" > "$CLAUDEMD"
+  echo -e "  ${GREEN}✓${NC} Created CLAUDE.md with Loom section"
 fi
 
 # ─── Done ────────────────────────────────────────────────────────
 echo ""
-echo -e "${GREEN}${BOLD}Ralph installed successfully!${NC}"
+echo -e "${GREEN}${BOLD}Loom installed successfully!${NC}"
 echo ""
 echo -e "${CYAN}Next steps:${NC}"
 echo ""
 echo -e "  1. ${BOLD}Edit your PRD${NC}"
-echo -e "     Open ${DIM}.ralph/prd.json${NC} and replace the example story with your own."
+echo -e "     Open ${DIM}.loom/prd.json${NC} and replace the example story with your own."
 echo -e "     Each story needs: id, title, description, acceptanceCriteria, files, status."
 echo ""
 echo -e "  2. ${BOLD}Start the loop${NC}"
-echo -e "     ${DIM}\$.ralph/ralph.sh${NC}"
-echo -e "     Or from Claude Code: ${DIM}/ralph${NC}"
+echo -e "     ${DIM}\$.loom/loom.sh${NC}"
+echo -e "     Or from Claude Code: ${DIM}/loom${NC}"
 echo ""
 echo -e "  3. ${BOLD}Quick directive${NC} (skip the PRD)"
-echo -e "     ${DIM}\$.ralph/ralph.sh --prompt \"Fix all lint errors\"${NC}"
-echo -e "     ${DIM}echo 'Add auth middleware' | .ralph/ralph.sh${NC}"
+echo -e "     ${DIM}\$.loom/loom.sh --prompt \"Fix all lint errors\"${NC}"
+echo -e "     ${DIM}echo 'Add auth middleware' | .loom/loom.sh${NC}"
 echo ""
 echo -e "  4. ${BOLD}Monitor${NC}"
-echo -e "     ${DIM}tmux attach -t ralph-$(basename "$TARGET_DIR")${NC}"
-echo -e "     ${DIM}.ralph/ralph-status.sh${NC}"
+echo -e "     ${DIM}tmux attach -t loom-$(basename "$TARGET_DIR")${NC}"
+echo -e "     ${DIM}.loom/loom-status.sh${NC}"
 echo ""
 echo -e "  5. ${BOLD}Stop${NC}"
-echo -e "     ${DIM}touch .ralph/.stop${NC}  (finishes current iteration)"
-echo -e "     ${DIM}tmux kill-session -t ralph-$(basename "$TARGET_DIR")${NC}  (immediate)"
+echo -e "     ${DIM}touch .loom/.stop${NC}  (finishes current iteration)"
+echo -e "     ${DIM}tmux kill-session -t loom-$(basename "$TARGET_DIR")${NC}  (immediate)"
 echo ""
-echo -e "  Run ${BOLD}.ralph/ralph.sh --help${NC} for all options."
+echo -e "  Run ${BOLD}.loom/loom.sh --help${NC} for all options."

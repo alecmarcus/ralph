@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# ─── Ralph Interactive Tool Blocker ─────────────────────────────
-# Blocks EnterPlanMode and AskUserQuestion during autonomous Ralph
+# ─── Loom Interactive Tool Blocker ─────────────────────────────
+# Blocks EnterPlanMode and AskUserQuestion during autonomous Loom
 # runs. No human is present — execute directly.
-# Only active inside a Ralph loop (RALPH_ACTIVE=1).
+# Only active inside a Loom loop (LOOM_ACTIVE=1).
 # ─────────────────────────────────────────────────────────────────
 
-# No-op outside Ralph
-[ "$RALPH_ACTIVE" != "1" ] && exit 0
+# No-op outside Loom
+[ "$LOOM_ACTIVE" != "1" ] && exit 0
 
 jq -n '{
   hookSpecificOutput: {

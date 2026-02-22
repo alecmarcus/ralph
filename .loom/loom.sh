@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# ─── Ralph: Autonomous Development Loop ──────────────────────────
+# ─── Loom: Autonomous Development Loop ──────────────────────────
 # Runs Claude Code in a loop, reading instructions from prompt.md
 # each iteration. Designed for tmux-based monitoring.
 # ─────────────────────────────────────────────────────────────────
 
-RALPH_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_DIR="$(dirname "$RALPH_DIR")"
+LOOM_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_DIR="$(dirname "$LOOM_DIR")"
 PROJECT_NAME="$(basename "$PROJECT_DIR")"
-LOG_FILE="$RALPH_DIR/ralph.log"
-TMUX_SESSION="ralph-${PROJECT_NAME}"
+LOG_FILE="$LOOM_DIR/loom.log"
+TMUX_SESSION="loom-${PROJECT_NAME}"
 MAX_ITERATIONS=500
 # Default to tmux when running from a terminal (not inside Claude Code
 # or already inside a tmux session from re-execution), but only if
@@ -127,7 +127,7 @@ while [[ $# -gt 0 ]]; do
       ;;
     -h|--help)
       cat <<'HELPEOF'
-Usage: ralph.sh [OPTIONS]
+Usage: loom.sh [OPTIONS]
 
 Options:
   -m, --max-iterations N   Maximum loop iterations (default: 500)
@@ -143,12 +143,12 @@ Sources (can be combined):
   --slack URL             Fetch Slack message context, implement
 
   Multiple sources can be combined:
-    ralph.sh --linear PHN-42 --github 13 --prompt "Also fix lint"
+    loom.sh --linear PHN-42 --github 13 --prompt "Also fix lint"
 
   Without a source flag, runs in PRD mode (reads prd.json).
   A directive can also be piped via stdin:
-    echo 'Fix all lint errors' | ralph.sh
-    echo 'Only work on AC-001' | ralph.sh --dry-run
+    echo 'Fix all lint errors' | loom.sh
+    echo 'Only work on AC-001' | loom.sh --dry-run
 
 Worktree:
   --worktree              Force git worktree mode
@@ -159,7 +159,7 @@ Worktree:
   off for PRD, --prompt, --slack, and piped stdin.
 
 Graceful stop:
-  touch .ralph/.stop      Stop after the current iteration finishes
+  touch .loom/.stop      Stop after the current iteration finishes
 HELPEOF
       exit 0
       ;;
@@ -293,8 +293,8 @@ $SOURCES_PIPED")
     for ((i=1; i<${#parts[@]}; i++)); do
       result+=$'\n\n---\n\n'"${parts[$i]}"
     done
-    printf '%s' "$result" > "$RALPH_DIR/.directive"
-    DIRECTIVE_FILE="$RALPH_DIR/.directive"
+    printf '%s' "$result" > "$LOOM_DIR/.directive"
+    DIRECTIVE_FILE="$LOOM_DIR/.directive"
   fi
 }
 
@@ -333,7 +333,7 @@ setup_worktree() {
     return
   fi
 
-  WORKTREE_BRANCH="ralph-${timestamp}-$(short_hash)"
+  WORKTREE_BRANCH="loom-${timestamp}-$(short_hash)"
   WORKTREE_DIR="$base_dir/$WORKTREE_BRANCH"
 
   mkdir -p "$base_dir"
@@ -409,7 +409,7 @@ master_log() {
   local iteration="$1" label="$2" status="$3" duration="$4" reason="$5"
   local ts
   ts="$(date '+%Y-%m-%d %H:%M:%S')"
-  local log_dir="$RALPH_DIR/logs"
+  local log_dir="$LOOM_DIR/logs"
   mkdir -p "$log_dir"
   echo "$ts | #$iteration | $label | $status | ${duration}s | $reason" >> "$log_dir/master.log"
 }
@@ -427,12 +427,12 @@ detect_timeout_cmd() {
 # ─── Result Signal Parsing ───────────────────────────────────────
 parse_result_signal() {
   local log_file="$1"
-  # Look for RALPH_RESULT:{SUCCESS,FAILED,PARTIAL,DONE}
+  # Look for LOOM_RESULT:{SUCCESS,FAILED,PARTIAL,DONE}
   # in the last 50 lines of the iteration log
   local signal
-  signal=$(tail -50 "$log_file" | grep -oE 'RALPH_RESULT:(SUCCESS|FAILED|PARTIAL|DONE)' | tail -1 || true)
+  signal=$(tail -50 "$log_file" | grep -oE 'LOOM_RESULT:(SUCCESS|FAILED|PARTIAL|DONE)' | tail -1 || true)
   if [ -n "$signal" ]; then
-    echo "${signal#RALPH_RESULT:}"
+    echo "${signal#LOOM_RESULT:}"
   else
     echo "UNKNOWN"
   fi
@@ -443,23 +443,23 @@ if ! command -v claude &>/dev/null; then
   die "claude CLI not found in PATH"
 fi
 
-if [[ ! -f "$RALPH_DIR/prompt.md" ]]; then
-  die "$RALPH_DIR/prompt.md not found"
+if [[ ! -f "$LOOM_DIR/prompt.md" ]]; then
+  die "$LOOM_DIR/prompt.md not found"
 fi
 
 if [ -n "$DIRECTIVE_FILE" ]; then
   if [[ ! -f "$DIRECTIVE_FILE" ]]; then
     die "directive file not found: $DIRECTIVE_FILE"
   fi
-  if [[ ! -f "$RALPH_DIR/directive.md" ]]; then
-    die "$RALPH_DIR/directive.md template not found"
+  if [[ ! -f "$LOOM_DIR/directive.md" ]]; then
+    die "$LOOM_DIR/directive.md template not found"
   fi
 fi
 
 # PRD mode requires prd.json
 if ! has_sources; then
-  if [[ ! -f "$RALPH_DIR/prd.json" ]]; then
-    die "$RALPH_DIR/prd.json not found"
+  if [[ ! -f "$LOOM_DIR/prd.json" ]]; then
+    die "$LOOM_DIR/prd.json not found"
   fi
 fi
 
@@ -467,28 +467,28 @@ detect_timeout_cmd
 resolve_worktree
 
 # ─── Environment ─────────────────────────────────────────────────
-# Allow nested claude invocations (e.g. when ralph is started from
-# within a Claude session via a /ralph skill).
+# Allow nested claude invocations (e.g. when loom is started from
+# within a Claude session via a /loom skill).
 unset CLAUDECODE
 
-# Signal to hooks that we're inside a Ralph loop. Hooks check this
+# Signal to hooks that we're inside a Loom loop. Hooks check this
 # variable and no-op when it's absent, so they don't affect normal
 # Claude Code sessions.
-export RALPH_ACTIVE=1
+export LOOM_ACTIVE=1
 
 # ─── Cleanup ─────────────────────────────────────────────────────
 cleanup() {
-  rm -f "$RALPH_DIR/.directive" "$RALPH_DIR/.piped_directive" "$RALPH_DIR/.iteration_marker" "$RALPH_DIR/.stop" "$RALPH_DIR/.pid"
+  rm -f "$LOOM_DIR/.directive" "$LOOM_DIR/.piped_directive" "$LOOM_DIR/.iteration_marker" "$LOOM_DIR/.stop" "$LOOM_DIR/.pid"
   cleanup_worktree
 }
 trap cleanup EXIT
 
 # ─── Concurrency Guard ──────────────────────────────────────────
-PID_FILE="$RALPH_DIR/.pid"
+PID_FILE="$LOOM_DIR/.pid"
 if [ -f "$PID_FILE" ]; then
   EXISTING_PID=$(cat "$PID_FILE")
   if kill -0 "$EXISTING_PID" 2>/dev/null; then
-    die "Ralph is already running (PID $EXISTING_PID). Use 'touch .ralph/.stop' to stop it."
+    die "Loom is already running (PID $EXISTING_PID). Use 'touch .loom/.stop' to stop it."
   else
     rm -f "$PID_FILE"
   fi
@@ -504,7 +504,7 @@ fi
 # ─── Tmux Launch ─────────────────────────────────────────────────
 if $USE_TMUX; then
   if tmux has-session -t "$TMUX_SESSION" 2>/dev/null; then
-    echo -e "${YELLOW}Ralph is already running in tmux session '$TMUX_SESSION'${NC}"
+    echo -e "${YELLOW}Loom is already running in tmux session '$TMUX_SESSION'${NC}"
     echo -e "Attach: ${BOLD}tmux attach -t $TMUX_SESSION${NC}"
     echo -e "Kill:   ${BOLD}tmux kill-session -t $TMUX_SESSION${NC}"
     exit 1
@@ -522,11 +522,11 @@ if $USE_TMUX; then
   [ -n "$SOURCES_SLACK" ]  && FORWARD_FLAGS="$FORWARD_FLAGS --slack $(printf '%q' "$SOURCES_SLACK")"
   if [ -n "$SOURCES_PIPED" ]; then
     if [ -n "$SOURCES_PROMPT" ]; then
-      printf '%s\n\n%s' "$SOURCES_PROMPT" "$SOURCES_PIPED" > "$RALPH_DIR/.piped_directive"
+      printf '%s\n\n%s' "$SOURCES_PROMPT" "$SOURCES_PIPED" > "$LOOM_DIR/.piped_directive"
     else
-      printf '%s' "$SOURCES_PIPED" > "$RALPH_DIR/.piped_directive"
+      printf '%s' "$SOURCES_PIPED" > "$LOOM_DIR/.piped_directive"
     fi
-    FORWARD_FLAGS="$FORWARD_FLAGS --prompt $(printf '%q' "$RALPH_DIR/.piped_directive")"
+    FORWARD_FLAGS="$FORWARD_FLAGS --prompt $(printf '%q' "$LOOM_DIR/.piped_directive")"
   elif [ -n "$SOURCES_PROMPT" ]; then
     FORWARD_FLAGS="$FORWARD_FLAGS --prompt $(printf '%q' "$SOURCES_PROMPT")"
   fi
@@ -545,25 +545,25 @@ if $USE_TMUX; then
   # (this process is still alive when the tmux instance starts)
   rm -f "$PID_FILE"
 
-  # Main pane: the ralph loop
+  # Main pane: the loom loop
   tmux new-session -d -s "$TMUX_SESSION" \
     "exec $0 $FORWARD_FLAGS"
 
   # Bottom-left: live status.md
   tmux split-window -v -t "$TMUX_SESSION" -p 28 \
-    "exec watch -n 3 -t sh -c 'printf \"\\033[1;36m── status.md ──\\033[0m\\n\"; cat \"$RALPH_DIR/status.md\" 2>/dev/null || echo \"(empty)\"'"
+    "exec watch -n 3 -t sh -c 'printf \"\\033[1;36m── status.md ──\\033[0m\\n\"; cat \"$LOOM_DIR/status.md\" 2>/dev/null || echo \"(empty)\"'"
 
   # Bottom-right: log tail
   tmux split-window -h -t "$TMUX_SESSION" \
-    "exec tail -f \"$RALPH_DIR/logs/master.log\" 2>/dev/null || tail -f \"$LOG_FILE\""
+    "exec tail -f \"$LOOM_DIR/logs/master.log\" 2>/dev/null || tail -f \"$LOG_FILE\""
 
   # Focus main pane
   tmux select-pane -t "$TMUX_SESSION:0.0"
 
-  echo -e "${GREEN}Ralph launched in tmux session '${TMUX_SESSION}'${NC}"
+  echo -e "${GREEN}Loom launched in tmux session '${TMUX_SESSION}'${NC}"
   echo -e "  Attach:  ${BOLD}tmux attach -t $TMUX_SESSION${NC}"
   echo -e "  Kill:    ${BOLD}tmux kill-session -t $TMUX_SESSION${NC}"
-  echo -e "  Stop:    ${BOLD}touch .ralph/.stop${NC} (finishes current iteration)"
+  echo -e "  Stop:    ${BOLD}touch .loom/.stop${NC} (finishes current iteration)"
 
   # Auto-attach when running from a terminal (not inside Claude Code)
   if [ -z "${CLAUDECODE:-}" ]; then
@@ -597,11 +597,11 @@ if [ "$USE_WORKTREE" = "yes" ]; then
   echo -e "  ${DIM}Tree${NC}  $WORKTREE_DIR"
 fi
 echo ""
-echo -e "  ${CYAN}Graceful stop${NC}    touch .ralph/.stop"
+echo -e "  ${CYAN}Graceful stop${NC}    touch .loom/.stop"
 echo -e "  ${CYAN}Kill${NC}             kill -TERM -$$"
-echo -e "  ${CYAN}Tail log${NC}         tail -f .ralph/ralph.log"
-echo -e "  ${CYAN}Status${NC}           cat .ralph/status.md"
-echo -e "  ${CYAN}Master log${NC}       tail -f .ralph/logs/master.log"
+echo -e "  ${CYAN}Tail log${NC}         tail -f .loom/loom.log"
+echo -e "  ${CYAN}Status${NC}           cat .loom/status.md"
+echo -e "  ${CYAN}Master log${NC}       tail -f .loom/logs/master.log"
 echo ""
 
 if $DRY_RUN; then
@@ -609,10 +609,10 @@ if $DRY_RUN; then
 fi
 
 # ─── Ensure log directory exists ────────────────────────────────
-mkdir -p "$RALPH_DIR/logs"
+mkdir -p "$LOOM_DIR/logs"
 
 # ─── Clean stale sentinels ──────────────────────────────────────
-rm -f "$RALPH_DIR/.iteration_marker"
+rm -f "$LOOM_DIR/.iteration_marker"
 
 # ─── Main Loop ───────────────────────────────────────────────────
 ITERATION=0
@@ -621,9 +621,9 @@ while [ "$ITERATION" -lt "$MAX_ITERATIONS" ]; do
   ITERATION=$((ITERATION + 1))
 
   # ─── Graceful stop: check for .stop sentinel ──
-  if [ -f "$RALPH_DIR/.stop" ]; then
-    log "${YELLOW}${BOLD}Graceful stop requested${NC} (.ralph/.stop found). Halting after iteration $((ITERATION - 1))."
-    rm -f "$RALPH_DIR/.stop"
+  if [ -f "$LOOM_DIR/.stop" ]; then
+    log "${YELLOW}${BOLD}Graceful stop requested${NC} (.loom/.stop found). Halting after iteration $((ITERATION - 1))."
+    rm -f "$LOOM_DIR/.stop"
     break
   fi
 
@@ -643,20 +643,20 @@ while [ "$ITERATION" -lt "$MAX_ITERATIONS" ]; do
     # Directive mode: read template, split on {{DIRECTIVE}} marker,
     # insert user's directive content between the halves.
     DIRECTIVE_CONTENT="$(cat "$DIRECTIVE_FILE")"
-    PROMPT_TOP="$(sed '/^{{DIRECTIVE}}$/,$d' "$RALPH_DIR/directive.md")"
-    PROMPT_BOTTOM="$(sed '1,/^{{DIRECTIVE}}$/d' "$RALPH_DIR/directive.md")"
+    PROMPT_TOP="$(sed '/^{{DIRECTIVE}}$/,$d' "$LOOM_DIR/directive.md")"
+    PROMPT_BOTTOM="$(sed '1,/^{{DIRECTIVE}}$/d' "$LOOM_DIR/directive.md")"
     PROMPT="${PROMPT_TOP}${DIRECTIVE_CONTENT}"$'\n'"${PROMPT_BOTTOM}"
   else
     # Normal loop mode: full prompt.md orchestration with PRD
-    PROMPT="$(cat "$RALPH_DIR/prompt.md")"
+    PROMPT="$(cat "$LOOM_DIR/prompt.md")"
   fi
 
   # ─── Iteration marker for stop-guard hook ──
-  touch "$RALPH_DIR/.iteration_marker"
+  touch "$LOOM_DIR/.iteration_marker"
 
   # ─── Dry-run: append analysis-only override ──
   if $DRY_RUN; then
-    export RALPH_DRY_RUN=1
+    export LOOM_DRY_RUN=1
 
     if [ -n "$DIRECTIVE_FILE" ]; then
       read -r -d '' DRY_ADDENDUM <<'DRYEOF' || true
@@ -721,7 +721,7 @@ DRYEOF
 
   # ─── Per-iteration log file ──
   ITER_LABEL="${MODE_LABEL}"
-  ITER_LOG="$RALPH_DIR/logs/$(date '+%Y%m%d-%H%M%S')-${ITER_LABEL}.log"
+  ITER_LOG="$LOOM_DIR/logs/$(date '+%Y%m%d-%H%M%S')-${ITER_LABEL}.log"
   ITER_START=$(date +%s)
 
   # ─── Execute Claude with streaming output ──
@@ -782,8 +782,8 @@ DRYEOF
   fi
 
   # ─── Circuit breaker: check if status.md was updated ──
-  if [ -f "$RALPH_DIR/.iteration_marker" ]; then
-    if [ ! -f "$RALPH_DIR/status.md" ] || [ "$RALPH_DIR/status.md" -ot "$RALPH_DIR/.iteration_marker" ]; then
+  if [ -f "$LOOM_DIR/.iteration_marker" ]; then
+    if [ ! -f "$LOOM_DIR/status.md" ] || [ "$LOOM_DIR/status.md" -ot "$LOOM_DIR/.iteration_marker" ]; then
       # status.md not updated — count as failure
       CONSECUTIVE_FAILURES=$((CONSECUTIVE_FAILURES + 1))
       log "${YELLOW}status.md not updated — failure $CONSECUTIVE_FAILURES/$MAX_FAILURES${NC}"
@@ -802,6 +802,6 @@ DRYEOF
 done
 
 if ! $DRY_RUN && [ "$ITERATION" -ge "$MAX_ITERATIONS" ]; then
-  log "${YELLOW}${BOLD}Ralph completed $MAX_ITERATIONS iterations. Halting.${NC}"
+  log "${YELLOW}${BOLD}Loom completed $MAX_ITERATIONS iterations. Halting.${NC}"
   master_log "$ITERATION" "$MODE_LABEL" "MAX_ITER" "0" "Reached max iterations"
 fi

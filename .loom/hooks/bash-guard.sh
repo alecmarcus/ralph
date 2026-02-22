@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# ─── Ralph Bash Guard ────────────────────────────────────────────
-# Blocks destructive shell commands during autonomous Ralph runs.
-# Only active inside a Ralph loop (RALPH_ACTIVE=1).
+# ─── Loom Bash Guard ────────────────────────────────────────────
+# Blocks destructive shell commands during autonomous Loom runs.
+# Only active inside a Loom loop (LOOM_ACTIVE=1).
 # ─────────────────────────────────────────────────────────────────
 
-# No-op outside Ralph
-[ "$RALPH_ACTIVE" != "1" ] && exit 0
+# No-op outside Loom
+[ "$LOOM_ACTIVE" != "1" ] && exit 0
 
 INPUT=$(cat)
 COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
@@ -40,7 +40,7 @@ if echo "$COMMAND" | grep -qE "$BLOCKED_RE"; then
   # Match found — identify which pattern for the deny reason
   for pattern in "${BLOCKED[@]}"; do
     if echo "$COMMAND" | grep -qE "$pattern"; then
-      jq -n --arg reason "Destructive command blocked by Ralph safety guard: matched pattern '$pattern'" '{
+      jq -n --arg reason "Destructive command blocked by Loom safety guard: matched pattern '$pattern'" '{
         hookSpecificOutput: {
           hookEventName: "PreToolUse",
           permissionDecision: "deny",

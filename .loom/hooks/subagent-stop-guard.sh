@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-# ─── Ralph Subagent Stop Guard ───────────────────────────────────
+# ─── Loom Subagent Stop Guard ───────────────────────────────────
 # Validates that a subagent produced meaningful output before
-# the orchestrator accepts its result. Only active in Ralph loops.
+# the orchestrator accepts its result. Only active in Loom loops.
 # ─────────────────────────────────────────────────────────────────
 
-# No-op outside Ralph
-[ "$RALPH_ACTIVE" != "1" ] && exit 0
+# No-op outside Loom
+[ "$LOOM_ACTIVE" != "1" ] && exit 0
 
 # No enforcement in dry-run
-[ "$RALPH_DRY_RUN" = "1" ] && exit 0
+[ "$LOOM_DRY_RUN" = "1" ] && exit 0
 
 INPUT=$(cat)
 

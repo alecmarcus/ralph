@@ -1,14 +1,14 @@
-# Ralph
+# Loom
 
 Autonomous development loop for [Claude Code](https://docs.anthropic.com/en/docs/claude-code/overview).
 
-Ralph runs Claude Code in a continuous loop, reading tasks from a PRD (or ad-hoc directives), dispatching parallel subagents, running tests, committing passing code, and repeating — all inside a tmux session you can monitor.
+Loom runs Claude Code in a continuous loop, reading tasks from a PRD (or ad-hoc directives), dispatching parallel subagents, running tests, committing passing code, and repeating — all inside a tmux session you can monitor.
 
 ## How it works
 
 ```
 ┌─────────────────────────────────────────────────┐
-│                  ralph.sh (loop)                │
+│                  loom.sh (loop)                │
 │                                                 │
 │  ┌───────────┐    ┌──────────┐    ┌──────────┐ │
 │  │ Read PRD  │───▶│ Dispatch │───▶│  Tests   │ │
@@ -51,8 +51,8 @@ Safety is enforced by Claude Code hooks — not just prompt instructions:
 ## Installation
 
 ```bash
-git clone https://github.com/alecmarcus/ralph.git
-cd ralph
+git clone https://github.com/alecmarcus/loom.git
+cd loom
 ./setup.sh /path/to/your-project
 ```
 
@@ -60,12 +60,12 @@ Or install into the current directory:
 
 ```bash
 cd your-project
-/path/to/ralph/setup.sh
+/path/to/loom/setup.sh
 ```
 
 The setup script:
-- Copies `.ralph/` (scripts, hooks, prompt templates)
-- Installs the `/ralph` and `/prd` [skills](https://code.claude.com/docs/en/skills) for Claude Code
+- Copies `.loom/` (scripts, hooks, prompt templates)
+- Installs the `/loom` and `/prd` [skills](https://code.claude.com/docs/en/skills) for Claude Code
 - Configures Claude Code hooks in `.claude/settings.local.json`
 - Updates `.gitignore`
 
@@ -73,20 +73,20 @@ The setup script:
 
 ### Generating a PRD
 
-Ralph includes tools to convert your specs, planning docs, and design sketches into a structured PRD:
+Loom includes tools to convert your specs, planning docs, and design sketches into a structured PRD:
 
 ```bash
 # From Claude Code (recommended — uses Claude's full tool suite)
 /prd spec.md planning-session.md sketch.md
 
 # Standalone script (wraps claude -p)
-.ralph/ralph-prd.sh spec.md planning-session.md
+.loom/loom-prd.sh spec.md planning-session.md
 
 # Append more stories to an existing PRD
 /prd additional-spec.md --append
 
 # Custom ID prefix and story limit
-.ralph/ralph-prd.sh --prefix SCP --max 60 spec.md
+.loom/loom-prd.sh --prefix SCP --max 60 spec.md
 ```
 
 The PRD generator decomposes your documents into atomic stories grouped into prioritized gates, with dependency tracking, acceptance criteria, and predicted file paths.
@@ -96,53 +96,53 @@ The PRD generator decomposes your documents into atomic stories grouped into pri
 Once you have a PRD (generated or hand-written), start the loop:
 
 ```bash
-.ralph/ralph.sh
+.loom/loom.sh
 ```
 
 Or from inside Claude Code:
 
 ```
-/ralph
+/loom
 ```
 
-Ralph reads the PRD, selects pending stories with clear dependencies, dispatches parallel subagents, and loops until everything is done.
+Loom reads the PRD, selects pending stories with clear dependencies, dispatches parallel subagents, and loops until everything is done.
 
 ### Directive mode
 
-Skip the PRD and give Ralph a specific task:
+Skip the PRD and give Loom a specific task:
 
 ```bash
 # Inline prompt
-.ralph/ralph.sh --prompt "Refactor all callbacks to async/await"
+.loom/loom.sh --prompt "Refactor all callbacks to async/await"
 
 # From a file
-.ralph/ralph.sh --prompt path/to/directive.md
+.loom/loom.sh --prompt path/to/directive.md
 
 # Piped
-echo "Fix all lint errors" | .ralph/ralph.sh
+echo "Fix all lint errors" | .loom/loom.sh
 ```
 
 ### Source integrations
 
-Ralph can fetch work from external tools:
+Loom can fetch work from external tools:
 
 ```bash
 # GitHub issue
-.ralph/ralph.sh --github 42
-.ralph/ralph.sh --github "https://github.com/org/repo/issues/42"
+.loom/loom.sh --github 42
+.loom/loom.sh --github "https://github.com/org/repo/issues/42"
 
 # Linear ticket
-.ralph/ralph.sh --linear "PHN-42"
-.ralph/ralph.sh --linear "https://linear.app/team/issue/PHN-42"
+.loom/loom.sh --linear "PHN-42"
+.loom/loom.sh --linear "https://linear.app/team/issue/PHN-42"
 
 # Slack message
-.ralph/ralph.sh --slack "https://team.slack.com/archives/C.../p..."
+.loom/loom.sh --slack "https://team.slack.com/archives/C.../p..."
 
 # Combine sources
-.ralph/ralph.sh --github 42 --prompt "Also fix the related lint warnings"
+.loom/loom.sh --github 42 --prompt "Also fix the related lint warnings"
 ```
 
-GitHub and Linear sources automatically enable git worktree mode — Ralph works on an isolated branch.
+GitHub and Linear sources automatically enable git worktree mode — Loom works on an isolated branch.
 
 ### Options
 
@@ -158,7 +158,7 @@ GitHub and Linear sources automatically enable git worktree mode — Ralph works
 
 ### Monitoring
 
-Ralph launches in a tmux session with three panes:
+Loom launches in a tmux session with three panes:
 
 | Pane | Content |
 |------|---------|
@@ -168,31 +168,31 @@ Ralph launches in a tmux session with three panes:
 
 ```bash
 # Attach to the session
-tmux attach -t ralph-<project-name>
+tmux attach -t loom-<project-name>
 
 # View status summary
-.ralph/ralph-status.sh
+.loom/loom-status.sh
 
 # Or from Claude Code
-/ralph status
+/loom status
 ```
 
 ### Stopping
 
 ```bash
 # Graceful (finishes current iteration)
-touch .ralph/.stop
+touch .loom/.stop
 
 # Immediate
-tmux kill-session -t ralph-<project-name>
+tmux kill-session -t loom-<project-name>
 
 # From Claude Code
-/ralph stop
+/loom stop
 ```
 
 ## PRD format
 
-`.ralph/prd.json` contains gates (priority-ordered story groups) and stories:
+`.loom/prd.json` contains gates (priority-ordered story groups) and stories:
 
 ```json
 {
@@ -248,7 +248,7 @@ tmux kill-session -t ralph-<project-name>
 - `acceptanceCriteria`: concrete verification steps (what to check)
 - `details`: object for arbitrary project-specific metadata (always present, `{}` when empty)
 
-Ralph uses `jq` to read stories in waves of 10 (never loading the full file), selects stories whose `blockedBy` dependencies are resolved, and dispatches them as parallel subagents.
+Loom uses `jq` to read stories in waves of 10 (never loading the full file), selects stories whose `blockedBy` dependencies are resolved, and dispatches them as parallel subagents.
 
 Statuses: `pending` → `in_progress` → `done` | `blocked` | `cancelled`
 
@@ -256,13 +256,13 @@ Statuses: `pending` → `in_progress` → `done` | `blocked` | `cancelled`
 
 ```
 .claude/skills/
-├── ralph/SKILL.md        # /ralph skill
+├── loom/SKILL.md        # /loom skill
 └── prd/SKILL.md          # /prd skill (PRD generator)
 
-.ralph/
-├── ralph.sh              # Main loop controller
-├── ralph-status.sh       # Status reporter
-├── ralph-prd.sh          # Standalone PRD generator
+.loom/
+├── loom.sh              # Main loop controller
+├── loom-status.sh       # Status reporter
+├── loom-prd.sh          # Standalone PRD generator
 ├── stop.sh               # Graceful stop helper
 ├── prompt.md             # PRD mode prompt template
 ├── directive.md          # Directive mode prompt template
@@ -283,12 +283,12 @@ Statuses: `pending` → `in_progress` → `done` | `blocked` | `cancelled`
 
 ## Circuit breakers
 
-Ralph won't run forever. It stops when:
+Loom won't run forever. It stops when:
 
-- **All stories done** — emits `RALPH_RESULT:DONE`
+- **All stories done** — emits `LOOM_RESULT:DONE`
 - **Consecutive failures** — 3 failures in a row trips the circuit breaker (configurable with `--max-failures`)
 - **Max iterations** — hard cap at 500 (configurable with `--max-iterations`)
-- **Graceful stop** — `touch .ralph/.stop`
+- **Graceful stop** — `touch .loom/.stop`
 - **Timeout** — per-iteration timeout kills stuck runs (configurable with `--timeout`)
 
 ## License

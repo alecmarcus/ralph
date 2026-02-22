@@ -1,11 +1,11 @@
-# Ralph runtime artifacts
-.ralph/logs/
-.ralph/.stop
-.ralph/.pid
-.ralph/.directive
-.ralph/.piped_directive
-.ralph/.iteration_marker
-.ralph/ralph.log
+# Loom runtime artifacts
+.loom/logs/
+.loom/.stop
+.loom/.pid
+.loom/.directive
+.loom/.piped_directive
+.loom/.iteration_marker
+.loom/loom.log
 
 # Claude Code local settings (contains hook paths specific to each machine)
 .claude/settings.local.json

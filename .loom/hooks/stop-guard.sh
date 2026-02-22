@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-# ─── Ralph Stop Guard ────────────────────────────────────────────
+# ─── Loom Stop Guard ────────────────────────────────────────────
 # Blocks the agent from exiting until status.md has been updated
-# this iteration. Only active inside a Ralph loop (RALPH_ACTIVE=1).
+# this iteration. Only active inside a Loom loop (LOOM_ACTIVE=1).
 # ─────────────────────────────────────────────────────────────────
 
-# No-op outside Ralph
-[ "$RALPH_ACTIVE" != "1" ] && exit 0
+# No-op outside Loom
+[ "$LOOM_ACTIVE" != "1" ] && exit 0
 
 # No enforcement in dry-run
-[ "$RALPH_DRY_RUN" = "1" ] && exit 0
+[ "$LOOM_DRY_RUN" = "1" ] && exit 0
 
 INPUT=$(cat)
 
@@ -18,15 +18,15 @@ STOP_ACTIVE=$(echo "$INPUT" | jq -r '.stop_hook_active // false')
 [ "$STOP_ACTIVE" = "true" ] && exit 0
 
 # ─── Check: status.md updated this iteration ─────────────────────
-# ralph.sh touches .iteration_marker at the start of each iteration.
+# loom.sh touches .iteration_marker at the start of each iteration.
 # If status.md is older than the marker, the agent skipped the status update.
 
-RALPH_DIR="${CLAUDE_PROJECT_DIR:-.}/.ralph"
+LOOM_DIR="${CLAUDE_PROJECT_DIR:-.}/.loom"
 
-if [ -f "$RALPH_DIR/.iteration_marker" ]; then
-  if [ ! -f "$RALPH_DIR/status.md" ] || [ "$RALPH_DIR/status.md" -ot "$RALPH_DIR/.iteration_marker" ]; then
+if [ -f "$LOOM_DIR/.iteration_marker" ]; then
+  if [ ! -f "$LOOM_DIR/status.md" ] || [ "$LOOM_DIR/status.md" -ot "$LOOM_DIR/.iteration_marker" ]; then
     cat >&2 <<'MSG'
-You have not updated .ralph/status.md this iteration.
+You have not updated .loom/status.md this iteration.
 
 You must write a fresh status report before exiting:
   - Failing Tests (every currently-failing test)
