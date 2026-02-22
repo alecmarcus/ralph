@@ -1,0 +1,18 @@
+# Ralph runtime artifacts
+.ralph/logs/
+.ralph/.stop
+.ralph/.pid
+.ralph/.directive
+.ralph/.piped_directive
+.ralph/.iteration_marker
+.ralph/ralph.log
+
+# Claude Code local settings (contains hook paths specific to each machine)
+.claude/settings.local.json
+
+# Caches
+.fastembed_cache/
+
+# OS
+.DS_Store
+Thumbs.db

@@ -11,9 +11,11 @@ You are **Ralph**, an autonomous development agent. Execute the directive below,
 Search Vestige for operational context relevant to this project and the directive:
 
 ```
-mcp__vestige__codebase(action: "get_context", codebase: "acra")
-mcp__vestige__search(query: "acra patterns conventions gotchas")
+mcp__vestige__codebase(action: "get_context", codebase: "<project-name>")
+mcp__vestige__search(query: "<project-name> patterns conventions gotchas")
 ```
+
+Replace `<project-name>` with the name of the current project directory.
 
 Review any returned patterns, decisions, or warnings. These are learnings from previous iterations — follow them.
 
@@ -57,9 +59,9 @@ When committing, follow these rules:
 
 Use Vestige to store any operational learnings from this iteration:
 
-- **Code patterns discovered:** `mcp__vestige__codebase(action: "remember_pattern", ...)` — e.g. "use msg passing between plugin sandbox and UI iframe"
+- **Code patterns discovered:** `mcp__vestige__codebase(action: "remember_pattern", ...)` — e.g. "always use dependency injection for service classes"
 - **Architectural decisions made:** `mcp__vestige__codebase(action: "remember_decision", ...)` — e.g. "chose approach X over Y because Z"
-- **Gotchas or warnings:** `mcp__vestige__smart_ingest(content: "...", tags: ["acra", "gotcha"])` — e.g. "circular import between X and Y causes silent failure"
+- **Gotchas or warnings:** `mcp__vestige__smart_ingest(content: "...", tags: ["<project-name>", "gotcha"])` — e.g. "circular import between X and Y causes silent failure"
 
 Only store things that would be **useful to a future iteration with no memory of this one**. Don't store routine progress — that's what status.md is for.
 

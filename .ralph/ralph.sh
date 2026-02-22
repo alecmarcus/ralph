@@ -13,8 +13,9 @@ LOG_FILE="$RALPH_DIR/ralph.log"
 TMUX_SESSION="ralph-${PROJECT_NAME}"
 MAX_ITERATIONS=500
 # Default to tmux when running from a terminal (not inside Claude Code
-# or already inside a tmux session from re-execution).
-if [ -n "${CLAUDECODE:-}" ] || [ -n "${TMUX:-}" ]; then
+# or already inside a tmux session from re-execution), but only if
+# tmux is actually installed.
+if [ -n "${CLAUDECODE:-}" ] || [ -n "${TMUX:-}" ] || ! command -v tmux &>/dev/null; then
   USE_TMUX=false
 else
   USE_TMUX=true
