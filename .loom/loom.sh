@@ -480,7 +480,12 @@ create_pr() {
 
   case "$MODE_LABEL" in
     *github*)
-      local issue_num="$SOURCES_GITHUB"
+      # Extract issue number from URL if present, otherwise use as-is
+      if [[ "$SOURCES_GITHUB" =~ /issues/([0-9]+) ]]; then
+        local issue_num="${BASH_REMATCH[1]}"
+      else
+        local issue_num="$SOURCES_GITHUB"
+      fi
       pr_title="fix(loom): resolve #${issue_num}"
       pr_body="## Summary
 Automated implementation for issue #${issue_num}.
