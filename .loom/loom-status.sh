@@ -45,6 +45,7 @@ SUCCESS=$(grep -c '| exit-0 |' "$MASTER_LOG" 2>/dev/null || true)
 TIMEOUT=$(grep -c '| timeout |' "$MASTER_LOG" 2>/dev/null || true)
 HALTED=$(grep -c '| HALTED |' "$MASTER_LOG" 2>/dev/null || true)
 FAILURES=$((TOTAL - SUCCESS - TIMEOUT - HALTED))
+[ "$FAILURES" -lt 0 ] && FAILURES=0
 
 echo -e "  Total iterations: ${BOLD}$TOTAL${NC}"
 echo -e "  Succeeded:        ${GREEN}$SUCCESS${NC}"
