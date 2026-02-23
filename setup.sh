@@ -100,7 +100,6 @@ echo -e "${CYAN}Installing Loom...${NC}"
 
 # Core directory
 mkdir -p "$TARGET_DIR/.loom/hooks"
-mkdir -p "$TARGET_DIR/.loom/specs"
 mkdir -p "$TARGET_DIR/.loom/logs"
 
 # Copy scripts
@@ -123,10 +122,6 @@ fi
 
 if [ ! -f "$TARGET_DIR/.loom/status.md" ] || grep -q "No iterations run yet" "$TARGET_DIR/.loom/status.md" 2>/dev/null; then
   cp "$LOOM_SOURCE/status.md" "$TARGET_DIR/.loom/status.md"
-fi
-
-if [ ! -f "$TARGET_DIR/.loom/specs/TICKETS.md" ]; then
-  cp "$LOOM_SOURCE/specs/TICKETS.md" "$TARGET_DIR/.loom/specs/TICKETS.md"
 fi
 
 # Make scripts executable
@@ -303,13 +298,12 @@ LOOM_SECTION="$LOOM_SECTION_MARKER
 Loom runs Claude Code in a continuous loop: read tasks from a PRD, dispatch parallel subagents, run tests, commit green code, repeat.
 
 \`\`\`
-.loom/              # Autonomous dev loop — dispatches parallel subagents from a PRD
+.loom/               # Autonomous dev loop — dispatches parallel subagents from a PRD
 ├── prd.json         # Structured stories with gates (P0/P1/P2), deps, acceptance criteria
 ├── prompt.md        # Autonomous iteration instructions (story selection, execution, commit)
 ├── directive.md     # Single-task mode instructions (execute one directive, signal result)
 ├── status.md        # Current iteration state (read at start, written at end of each cycle)
-├── prd.sh     # Standalone PRD generator (wraps claude -p)
-├── specs/           # Reference specs and ticket tracking for Loom
+├── prd.sh           # Standalone PRD generator (wraps claude -p)
 └── hooks/           # Guard rails: stop signals, interactive blocking, subagent limits
 \`\`\`
 

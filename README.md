@@ -310,8 +310,6 @@ Statuses: `pending` → `in_progress` → `done` | `blocked` | `cancelled`
 │   ├── status-kill.sh
 │   ├── stop-guard.sh
 │   └── subagent-stop-guard.sh
-├── specs/
-│   └── TICKETS.md        # Your reference notes
 └── logs/                 # Per-iteration logs + master.log
 ```
 
