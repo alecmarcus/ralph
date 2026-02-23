@@ -1,12 +1,3 @@
-# Loom runtime artifacts
-.loom/logs/
-.loom/.stop
-.loom/.pid
-.loom/.directive
-.loom/.piped_directive
-.loom/.iteration_marker
-.loom/loom.log
-
 # Caches
 .fastembed_cache/
 
