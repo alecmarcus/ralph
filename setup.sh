@@ -106,7 +106,7 @@ mkdir -p "$TARGET_DIR/.loom/logs"
 # Copy scripts
 cp "$LOOM_SOURCE/loom.sh"        "$TARGET_DIR/.loom/loom.sh"
 cp "$LOOM_SOURCE/loom-status.sh" "$TARGET_DIR/.loom/loom-status.sh"
-cp "$LOOM_SOURCE/loom-prd.sh"    "$TARGET_DIR/.loom/loom-prd.sh"
+cp "$LOOM_SOURCE/prd.sh"    "$TARGET_DIR/.loom/prd.sh"
 cp "$LOOM_SOURCE/stop.sh"         "$TARGET_DIR/.loom/stop.sh"
 cp "$LOOM_SOURCE/prompt.md"       "$TARGET_DIR/.loom/prompt.md"
 cp "$LOOM_SOURCE/directive.md"    "$TARGET_DIR/.loom/directive.md"
@@ -132,7 +132,7 @@ fi
 # Make scripts executable
 chmod +x "$TARGET_DIR/.loom/loom.sh"
 chmod +x "$TARGET_DIR/.loom/loom-status.sh"
-chmod +x "$TARGET_DIR/.loom/loom-prd.sh"
+chmod +x "$TARGET_DIR/.loom/prd.sh"
 chmod +x "$TARGET_DIR/.loom/stop.sh"
 chmod +x "$TARGET_DIR/.loom/hooks/"*.sh
 
@@ -308,7 +308,7 @@ Loom runs Claude Code in a continuous loop: read tasks from a PRD, dispatch para
 ├── prompt.md        # Autonomous iteration instructions (story selection, execution, commit)
 ├── directive.md     # Single-task mode instructions (execute one directive, signal result)
 ├── status.md        # Current iteration state (read at start, written at end of each cycle)
-├── loom-prd.sh     # Standalone PRD generator (wraps claude -p)
+├── prd.sh     # Standalone PRD generator (wraps claude -p)
 ├── specs/           # Reference specs and ticket tracking for Loom
 └── hooks/           # Guard rails: stop signals, interactive blocking, subagent limits
 \`\`\`

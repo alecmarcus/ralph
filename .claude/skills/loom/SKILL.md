@@ -82,6 +82,26 @@ Slack mode — fetch Slack message, implement:
 unset CLAUDECODE && .loom/loom.sh --slack "$URL"
 ```
 
+### Case 8b: `notion <query_or_url>`
+
+Notion mode — fetch Notion page, implement:
+
+```bash
+unset CLAUDECODE && .loom/loom.sh --notion "$REST"
+```
+
+Where `$REST` is everything after the word `notion`.
+
+### Case 8c: `sentry <query_or_url>`
+
+Sentry mode — fetch Sentry issue, fix the bug:
+
+```bash
+unset CLAUDECODE && .loom/loom.sh --sentry "$REST"
+```
+
+Where `$REST` is everything after the word `sentry`.
+
 ### Case 9: Arguments start with `-` (flags only)
 
 Pass flags through directly:
@@ -117,6 +137,8 @@ Examples:
 6. If `$ARGUMENTS` starts with `github ` → Case 6
 7. If `$ARGUMENTS` starts with `issue ` → Case 7
 8. If `$ARGUMENTS` starts with `slack ` → Case 8
+8b. If `$ARGUMENTS` starts with `notion ` → Case 8b
+8c. If `$ARGUMENTS` starts with `sentry ` → Case 8c
 9. If `$ARGUMENTS` starts with `--` or `-` → Case 9
 10. Otherwise → Case 10
 

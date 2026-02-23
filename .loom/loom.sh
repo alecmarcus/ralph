@@ -30,6 +30,8 @@ CONSECUTIVE_FAILURES=0
 SOURCES_LINEAR=""       # Linear query/URL
 SOURCES_GITHUB=""       # GitHub query/URL/number
 SOURCES_SLACK=""        # Slack permalink URL
+SOURCES_NOTION=""       # Notion page URL or search query
+SOURCES_SENTRY=""       # Sentry issue URL or search query
 SOURCES_PROMPT=""       # Inline text or file path
 SOURCES_PIPED=""        # Piped stdin content
 
@@ -56,7 +58,8 @@ is_url() { [[ "$1" == http://* ]] || [[ "$1" == https://* ]]; }
 
 has_sources() {
   [ -n "$SOURCES_LINEAR" ] || [ -n "$SOURCES_GITHUB" ] || \
-  [ -n "$SOURCES_SLACK" ] || [ -n "$SOURCES_PROMPT" ] || [ -n "$SOURCES_PIPED" ]
+  [ -n "$SOURCES_SLACK" ] || [ -n "$SOURCES_NOTION" ] || \
+  [ -n "$SOURCES_SENTRY" ] || [ -n "$SOURCES_PROMPT" ] || [ -n "$SOURCES_PIPED" ]
 }
 
 short_hash() { head -c 4 /dev/urandom | xxd -p | head -c 6; }
@@ -112,6 +115,16 @@ while [[ $# -gt 0 ]]; do
       SOURCES_SLACK="$2"
       shift 2
       ;;
+    --notion)
+      [[ $# -ge 2 ]] || die "$1 requires a page URL or search query"
+      SOURCES_NOTION="$2"
+      shift 2
+      ;;
+    --sentry)
+      [[ $# -ge 2 ]] || die "$1 requires an issue URL or search query"
+      SOURCES_SENTRY="$2"
+      shift 2
+      ;;
     --worktree)
       USE_WORKTREE="yes"
       shift
@@ -141,6 +154,8 @@ Sources (can be combined):
   --linear QUERY_OR_URL   Fetch from Linear MCP, implement, update ticket
   --github QUERY_OR_URL   Fetch from GitHub via gh, implement, close issues
   --slack URL             Fetch Slack message context, implement
+  --notion URL_OR_QUERY   Fetch Notion page via MCP, implement
+  --sentry URL_OR_QUERY   Fetch Sentry issue via MCP, fix the error
 
   Multiple sources can be combined:
     loom.sh --linear PHN-42 --github 13 --prompt "Also fix lint"
@@ -155,8 +170,9 @@ Worktree:
   --no-worktree           Disable git worktree mode
   --resume PATH_OR_BRANCH Reuse existing worktree
 
-  Worktree is on by default for --linear and --github,
-  off for PRD, --prompt, --slack, and piped stdin.
+  Worktree is on by default for all source integrations
+  (--linear, --github, --slack, --notion, --sentry),
+  off for PRD, --prompt, and piped stdin.
 
 Graceful stop:
   touch .loom/.stop      Stop after the current iteration finishes
@@ -263,6 +279,48 @@ $SOURCES_SLACK
 Use any available Slack MCP tools or web fetch to read the message and its thread context. Understand what's being described or requested. Implement it.")
   fi
 
+  # Notion
+  if [ -n "$SOURCES_NOTION" ]; then
+    if is_url "$SOURCES_NOTION"; then
+      parts+=("## Notion Page
+
+Fetch the Notion page at this URL using the Notion MCP tools:
+
+$SOURCES_NOTION
+
+Read the page content, including any sub-pages, databases, or linked references. Understand the requirements or spec described. Implement everything specified.")
+    else
+      parts+=("## Notion Page
+
+Search Notion using the Notion MCP tools for pages matching:
+
+$SOURCES_NOTION
+
+Read the matching page(s) and their content, including sub-pages and linked references. Understand the requirements or spec described. Implement everything specified.")
+    fi
+  fi
+
+  # Sentry
+  if [ -n "$SOURCES_SENTRY" ]; then
+    if is_url "$SOURCES_SENTRY"; then
+      parts+=("## Sentry Issue
+
+Fetch the Sentry issue at this URL using the Sentry MCP tools:
+
+$SOURCES_SENTRY
+
+Read the error details: exception type, stack trace, breadcrumbs, tags, and any linked issues. Identify the root cause from the stack trace. Fix the bug. Add a regression test that reproduces the error and verifies the fix.")
+    else
+      parts+=("## Sentry Issue
+
+Search Sentry using the Sentry MCP tools for issues matching:
+
+$SOURCES_SENTRY
+
+Read the matching issue(s) and their error details: exception type, stack trace, breadcrumbs, tags. Identify the root cause from the stack trace. Fix the bug(s). Add regression tests that reproduce each error and verify the fix.")
+    fi
+  fi
+
   # Prompt (inline text or file contents)
   if [ -n "$SOURCES_PROMPT" ]; then
     if [ -f "$SOURCES_PROMPT" ] && [ ${#parts[@]} -eq 0 ] && [ -z "$SOURCES_PIPED" ]; then
@@ -306,7 +364,7 @@ fi
 resolve_worktree() {
   if [ -z "$USE_WORKTREE" ]; then
     # Auto: on if any issue-tracker source is active
-    if [ -n "$SOURCES_LINEAR" ] || [ -n "$SOURCES_GITHUB" ]; then
+    if [ -n "$SOURCES_LINEAR" ] || [ -n "$SOURCES_GITHUB" ] || [ -n "$SOURCES_SLACK" ] || [ -n "$SOURCES_NOTION" ] || [ -n "$SOURCES_SENTRY" ]; then
       USE_WORKTREE="yes"
     else
       USE_WORKTREE="no"
@@ -520,6 +578,8 @@ if $USE_TMUX; then
   [ -n "$SOURCES_LINEAR" ] && FORWARD_FLAGS="$FORWARD_FLAGS --linear $(printf '%q' "$SOURCES_LINEAR")"
   [ -n "$SOURCES_GITHUB" ] && FORWARD_FLAGS="$FORWARD_FLAGS --github $(printf '%q' "$SOURCES_GITHUB")"
   [ -n "$SOURCES_SLACK" ]  && FORWARD_FLAGS="$FORWARD_FLAGS --slack $(printf '%q' "$SOURCES_SLACK")"
+  [ -n "$SOURCES_NOTION" ] && FORWARD_FLAGS="$FORWARD_FLAGS --notion $(printf '%q' "$SOURCES_NOTION")"
+  [ -n "$SOURCES_SENTRY" ] && FORWARD_FLAGS="$FORWARD_FLAGS --sentry $(printf '%q' "$SOURCES_SENTRY")"
   if [ -n "$SOURCES_PIPED" ]; then
     if [ -n "$SOURCES_PROMPT" ]; then
       printf '%s\n\n%s' "$SOURCES_PROMPT" "$SOURCES_PIPED" > "$LOOM_DIR/.piped_directive"
@@ -577,6 +637,8 @@ MODE_LABEL=""
 [ -n "$SOURCES_LINEAR" ] && MODE_LABEL="${MODE_LABEL:+$MODE_LABEL+}linear"
 [ -n "$SOURCES_GITHUB" ] && MODE_LABEL="${MODE_LABEL:+$MODE_LABEL+}github"
 [ -n "$SOURCES_SLACK" ]  && MODE_LABEL="${MODE_LABEL:+$MODE_LABEL+}slack"
+[ -n "$SOURCES_NOTION" ] && MODE_LABEL="${MODE_LABEL:+$MODE_LABEL+}notion"
+[ -n "$SOURCES_SENTRY" ] && MODE_LABEL="${MODE_LABEL:+$MODE_LABEL+}sentry"
 [ -n "$SOURCES_PROMPT" ] && MODE_LABEL="${MODE_LABEL:+$MODE_LABEL+}prompt"
 [ -n "$SOURCES_PIPED" ]  && MODE_LABEL="${MODE_LABEL:+$MODE_LABEL+}prompt"
 MODE_LABEL="${MODE_LABEL:-prd}"

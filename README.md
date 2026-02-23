@@ -1,22 +1,53 @@
 # Loom
 
-Autonomous development loop for [Claude Code](https://docs.anthropic.com/en/docs/claude-code/overview).
+Loom is a Ralph Wiggum style autonomous development loop for [Claude Code](https://docs.anthropic.com/en/docs/claude-code/overview) that is optimized for multi-threaded work with subagents.
 
 Loom runs Claude Code in a continuous loop, reading tasks from a PRD (or ad-hoc directives), dispatching parallel subagents, running tests, committing passing code, and repeating — all inside a tmux session you can monitor.
+
+You can loom from inside Claude Code, or with the bash script.
+
+## Quick start
+
+1. Install
+  ```bash
+  # Install into your project
+  cd your-project
+  curl -fsSL https://raw.githubusercontent.com/alecmarcus/loom/main/install.sh | bash
+  ```
+
+2. (Optional) Have Claude generate a PRD with `/prd` from your specs. Pass any number of files of any format.
+  ```bash
+  # Use the slash command from inside Claude Code
+  /prd spec.md design.md arch.md
+  ```
+
+3. Start the loom
+  ```sh
+  # Both the slash command and bash script default to work through the PRD until done
+  /loom
+  
+  # You can skip the PRD and give it a task directly
+  /loom Refactor all callbacks to async/await
+  
+  # Or pass queries to MCPs
+  /loom github 42
+  /loom linear TEAM-42
+  /loom slack https://team.slack.com/archives/...
+  ```
 
 ## How it works
 
 ```
 ┌─────────────────────────────────────────────────┐
-│                  loom.sh (loop)                │
+│                  loom.sh (loop)                 │
 │                                                 │
-│  ┌───────────┐    ┌──────────┐    ┌──────────┐ │
-│  │ Read PRD  │───▶│ Dispatch │───▶│  Tests   │ │
-│  │ + status  │    │ subagents│    │ + commit │ │
-│  └───────────┘    └──────────┘    └──────────┘ │
+│  ┌───────────┐    ┌──────────┐    ┌──────────┐  │
+│  │ Read PRD  │───▶│ Dispatch │───▶│  Tests   │  │
+│  │ + status  │    │ subagents│    │ + commit │  │
+│  └───────────┘    └──────────┘    └──────────┘  │
 │        ▲                               │        │
 │        └───────────────────────────────┘        │
-│                 write status.md                  │
+│                 write status.md                 │
 └─────────────────────────────────────────────────┘
 ```
 
@@ -43,24 +74,43 @@ Safety is enforced by Claude Code hooks — not just prompt instructions:
 
 ## Prerequisites
 
+- git
 - [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code/overview) (`claude` in PATH)
 - [jq](https://jqlang.github.io/jq/)
-- git
-- tmux (recommended — provides split-pane monitoring)
+- [tmux]https://github.com/tmux/tmux/wiki (recommended — provides split-pane monitoring)
 
 ## Installation
+
+You can run the remote install script, which shallow-clones the necessary files from this repo into a temporary directory, installs brew deps, runs `setup.sh` in the cwd, and cleans itself up after.
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/alecmarcus/loom/main/install.sh | bash
+```
+
+Or specify a target project directory:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/alecmarcus/loom/main/install.sh | bash -s -- /path/to/your-project
+```
+
+### Manual setup
+
+If you don't have them, install `jq` and `tmux`:
+
+```bash
+# Loom uses jq to pre-parse JSON before sending to claude, optimizing context
+brew install jq
+
+# tmux provides split-pane monitoring stream inside the terminal
+brew install tmux
+```
+
+Clone the repo and run the setup script:
 
 ```bash
 git clone https://github.com/alecmarcus/loom.git
 cd loom
 ./setup.sh /path/to/your-project
-```
-
-Or install into the current directory:
-
-```bash
-cd your-project
-/path/to/loom/setup.sh
 ```
 
 The setup script:
@@ -71,90 +121,85 @@ The setup script:
 
 ## Usage
 
-### Generating a PRD
+Everything in Loom can be run from the `/loom` slash command inside Claude Code or from the `.loom/loom.sh` bash script directly. Both support the same sources and options.
 
-Loom includes tools to convert your specs, planning docs, and design sketches into a structured PRD:
+### Sources
 
-```bash
-# From Claude Code (recommended — uses Claude's full tool suite)
-/prd spec.md planning-session.md sketch.md
+Sources tell Loom where to get work. Without a source, Loom defaults to PRD mode (reads `.loom/prd.json`). Sources can be combined — e.g., `--github 42 --prompt "Also fix lint"`.
 
-# Standalone script (wraps claude -p)
-.loom/loom-prd.sh spec.md planning-session.md
+| Source | Bash flag | `/loom` subcommand | Accepts | Worktree | MCP / tool required | Auth |
+|--------|-----------|-------------------|---------|----------|-------------------|------|
+| PRD | *(default)* | `/loom` | — | off | — | — |
+| Prompt | `--prompt` | `/loom <text>` | text, file path | off | — | — |
+| Piped | `echo "..." \| .loom/loom.sh` | — | stdin | off | — | — |
+| GitHub | `--github` | `/loom github` | issue #, URL, search query | **on** | `gh` CLI | `gh auth login` |
+| Linear | `--linear` | `/loom linear` | ticket ID, URL, search query | **on** | Linear MCP | Linear API key |
+| Slack | `--slack` | `/loom slack` | permalink URL | **on** | Slack MCP | Slack OAuth |
+| Notion | `--notion` | `/loom notion` | page URL, search query | **on** | Notion MCP | Notion API key |
+| Sentry | `--sentry` | `/loom sentry` | issue URL, search query | **on** | Sentry MCP | Sentry auth token |
 
-# Append more stories to an existing PRD
-/prd additional-spec.md --append
+When worktree is **on**, Loom creates an isolated git worktree + branch so your main tree stays clean. Override with `--worktree` / `--no-worktree`.
 
-# Custom ID prefix and story limit
-.loom/loom-prd.sh --prefix SCP --max 60 spec.md
-```
-
-The PRD generator decomposes your documents into atomic stories grouped into prioritized gates, with dependency tracking, acceptance criteria, and predicted file paths.
-
-### PRD mode (default)
-
-Once you have a PRD (generated or hand-written), start the loop:
+#### Examples
 
 ```bash
-.loom/loom.sh
-```
-
-Or from inside Claude Code:
-
-```
+# PRD mode — work through stories until done
 /loom
-```
+.loom/loom.sh
 
-Loom reads the PRD, selects pending stories with clear dependencies, dispatches parallel subagents, and loops until everything is done.
+# Directive — give it a task directly
+/loom Refactor all callbacks to async/await
+.loom/loom.sh --prompt "Fix all lint errors"
 
-### Directive mode
-
-Skip the PRD and give Loom a specific task:
-
-```bash
-# Inline prompt
-.loom/loom.sh --prompt "Refactor all callbacks to async/await"
-
-# From a file
-.loom/loom.sh --prompt path/to/directive.md
-
-# Piped
-echo "Fix all lint errors" | .loom/loom.sh
-```
-
-### Source integrations
-
-Loom can fetch work from external tools:
-
-```bash
-# GitHub issue
-.loom/loom.sh --github 42
+# GitHub — issue number, URL, or search
+/loom github 42
 .loom/loom.sh --github "https://github.com/org/repo/issues/42"
 
-# Linear ticket
-.loom/loom.sh --linear "PHN-42"
-.loom/loom.sh --linear "https://linear.app/team/issue/PHN-42"
+# Linear — ticket ID, URL, or natural language
+/loom linear TEAM-42
+/loom linear fix all tickets with less than 24h left in the SLA
 
-# Slack message
-.loom/loom.sh --slack "https://team.slack.com/archives/C.../p..."
+# Slack — message permalink
+/loom slack https://team.slack.com/archives/C.../p...
+
+# Notion — page URL or search
+/loom notion https://notion.so/team/My-Spec-Page-abc123
+/loom notion "API redesign spec"
+
+# Sentry — issue URL or search
+/loom sentry https://sentry.io/organizations/org/issues/12345/
+/loom sentry "TypeError in checkout flow"
 
 # Combine sources
 .loom/loom.sh --github 42 --prompt "Also fix the related lint warnings"
 ```
 
-GitHub and Linear sources automatically enable git worktree mode — Loom works on an isolated branch.
+### Generating a PRD
+
+```bash
+# From Claude Code (recommended)
+/prd spec.md planning-session.md sketch.md
+
+# Standalone script
+.loom/prd.sh spec.md planning-session.md
+
+# Append to existing PRD
+/prd additional-spec.md --append
+```
+
+The PRD generator decomposes your documents into atomic stories grouped into prioritized gates, with dependency tracking, acceptance criteria, and predicted file paths.
 
 ### Options
 
-```
--m, --max-iterations N   Maximum loop iterations (default: 500)
--d, --dry-run            Analyze one iteration without executing changes
---timeout SECONDS        Per-iteration timeout (default: 3600)
---max-failures N         Consecutive failures before halt (default: 3)
---worktree               Force git worktree mode
---no-worktree            Disable git worktree mode
---resume PATH_OR_BRANCH  Resume an existing worktree
-```
+| Flag | Short | Default | Description |
+|------|-------|---------|-------------|
+| `--max-iterations` | `-m` | `500` | Maximum loop iterations |
+| `--dry-run` | `-d` | off | Analyze one iteration without executing changes |
+| `--timeout` | — | `3600` | Per-iteration timeout in seconds |
+| `--max-failures` | — | `3` | Consecutive failures before halt |
+| `--worktree` | — | auto | Force git worktree mode |
+| `--no-worktree` | — | auto | Disable git worktree mode |
+| `--resume` | — | — | Resume an existing worktree by path or branch |
 
 ### Monitoring
 
@@ -167,27 +212,16 @@ Loom launches in a tmux session with three panes:
 | Bottom-right | `master.log` tail |
 
 ```bash
-# Attach to the session
-tmux attach -t loom-<project-name>
-
-# View status summary
-.loom/loom-status.sh
-
-# Or from Claude Code
-/loom status
+tmux attach -t loom-<project>   # attach to the session
+/loom status                     # view status summary
 ```
 
 ### Stopping
 
 ```bash
-# Graceful (finishes current iteration)
-touch .loom/.stop
-
-# Immediate
-tmux kill-session -t loom-<project-name>
-
-# From Claude Code
-/loom stop
+touch .loom/.stop                        # graceful — finishes current iteration
+tmux kill-session -t loom-<project>      # immediate
+/loom stop                               # from Claude Code
 ```
 
 ## PRD format
@@ -262,7 +296,7 @@ Statuses: `pending` → `in_progress` → `done` | `blocked` | `cancelled`
 .loom/
 ├── loom.sh              # Main loop controller
 ├── loom-status.sh       # Status reporter
-├── loom-prd.sh          # Standalone PRD generator
+├── prd.sh          # Standalone PRD generator
 ├── stop.sh               # Graceful stop helper
 ├── prompt.md             # PRD mode prompt template
 ├── directive.md          # Directive mode prompt template
