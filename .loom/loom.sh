@@ -186,7 +186,7 @@ done
 
 # ─── Piped stdin ─────────────────────────────────────────────────
 if [ ! -t 0 ]; then
-  PIPED="$(cat)"
+  PIPED="$(timeout 1 cat 2>/dev/null || true)"
   if [ -n "$PIPED" ]; then
     SOURCES_PIPED="$PIPED"
   fi
@@ -724,10 +724,11 @@ if $USE_TMUX; then
     FORWARD_FLAGS="$FORWARD_FLAGS --prompt $(printf '%q' "$SOURCES_PROMPT")"
   fi
 
-  # Forward worktree override
+  # Forward worktree and PR overrides
   if [ "$USE_WORKTREE" = "yes" ] && [ -z "$RESUME_WORKTREE" ]; then
-    FORWARD_FLAGS="$FORWARD_FLAGS --worktree"
+    FORWARD_FLAGS="$FORWARD_FLAGS --worktree true"
   fi
+  [ "$CREATE_PR" = "no" ] && FORWARD_FLAGS="$FORWARD_FLAGS --pr false"
   if [ -n "$RESUME_WORKTREE" ]; then
     FORWARD_FLAGS="$FORWARD_FLAGS --resume $(printf '%q' "$RESUME_WORKTREE")"
   fi
