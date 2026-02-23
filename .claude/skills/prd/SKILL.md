@@ -1,7 +1,7 @@
 ---
 name: prd
 description: Generate a structured PRD from spec files, planning docs, or design sketches. Decomposes documents into atomic stories grouped into prioritized gates with dependency tracking.
-argument-hint: "<files...> [--append] [--prefix PREFIX] [--max N]"
+argument-hint: "<files...> [append] [prefix PREFIX] [max N]"
 disable-model-invocation: true
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Task
 ---
@@ -14,10 +14,10 @@ Generate a structured PRD (`.loom/prd.json`) from specification documents, plann
 
 Parse `$ARGUMENTS` for:
 
-- **File paths**: one or more files to ingest (required unless `--append` with no files)
-- **`--append`**: add stories to an existing PRD instead of replacing it
-- **`--prefix PREFIX`**: story ID prefix (default: project directory name, uppercased, truncated to 5 chars)
-- **`--max N`**: maximum number of stories to generate (default: no limit)
+- **File paths**: one or more files to ingest (required unless `append` with no files)
+- **`append`**: add stories to an existing PRD instead of replacing it
+- **`prefix PREFIX`**: story ID prefix (default: project directory name, uppercased, truncated to 5 chars)
+- **`max N`**: maximum number of stories to generate (default: no limit)
 
 If `$ARGUMENTS` is empty or `help`, show usage and exit.
 

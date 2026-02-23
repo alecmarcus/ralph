@@ -1,7 +1,7 @@
 ---
 name: loom
 description: Start the Loom autonomous development loop. Launches a tmux session that continuously reads tasks from a PRD, dispatches parallel subagents, runs tests, and commits passing code.
-argument-hint: "[flags or directive text]"
+argument-hint: "[status|stop|kill|github|linear|slack|notion|sentry|<directive text>]"
 disable-model-invocation: true
 allowed-tools: Bash
 ---
@@ -102,18 +102,15 @@ unset CLAUDECODE && .loom/loom.sh --sentry "$REST"
 
 Where `$REST` is everything after the word `sentry`.
 
-### Case 9: Arguments start with `-` (flags only)
+### Case 9: Arguments start with `-` (raw flags passthrough)
 
-Pass flags through directly:
+Pass flags through directly to `loom.sh`:
 
 ```bash
 unset CLAUDECODE && .loom/loom.sh $ARGUMENTS
 ```
 
-Examples:
-- `/loom --dry-run` → `unset CLAUDECODE && .loom/loom.sh --dry-run`
-- `/loom -m 10` → `unset CLAUDECODE && .loom/loom.sh -m 10`
-- `/loom --dry-run --prompt path/to/file.md` → `unset CLAUDECODE && .loom/loom.sh --dry-run --prompt path/to/file.md`
+This is a fallback for advanced usage. Most users should use the subcommand forms above.
 
 ### Case 10: Arguments are plain text (a prompt)
 
