@@ -158,7 +158,7 @@ rmdir "$TARGET_DIR/.claude/commands" 2>/dev/null || true
 echo -e "  ${GREEN}✓${NC} Installed /loom and /prd skills"
 
 # ─── Configure Claude Code hooks ────────────────────────────────
-SETTINGS_FILE="$TARGET_DIR/.claude/settings.local.json"
+SETTINGS_FILE="$TARGET_DIR/.claude/settings.json"
 
 # Build the hooks configuration
 HOOKS_JSON='{
@@ -249,7 +249,7 @@ if [ -f "$SETTINGS_FILE" ]; then
   EXISTING=$(cat "$SETTINGS_FILE")
   # Check if hooks already exist
   if echo "$EXISTING" | jq -e '.hooks' &>/dev/null; then
-    echo -e "  ${YELLOW}!${NC} Hooks already configured in settings.local.json — merging"
+    echo -e "  ${YELLOW}!${NC} Hooks already configured in settings.json — merging"
     MERGED=$(echo "$EXISTING" | jq --argjson new "$HOOKS_JSON" '.hooks = ($new.hooks * .hooks)')
     echo "$MERGED" | jq '.' > "$SETTINGS_FILE"
   else

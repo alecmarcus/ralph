@@ -116,7 +116,7 @@ cd loom
 The setup script:
 - Copies `.loom/` (scripts, hooks, prompt templates)
 - Installs the `/loom` and `/prd` [skills](https://code.claude.com/docs/en/skills) for Claude Code
-- Configures Claude Code hooks in `.claude/settings.local.json`
+- Configures Claude Code hooks in `.claude/settings.json`
 - Updates `.gitignore`
 
 ## Usage

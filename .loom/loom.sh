@@ -402,7 +402,7 @@ setup_worktree() {
 
   # Copy dotfiles that are typically gitignored but needed at runtime
   local dotfiles=(
-    ".claude/settings.local.json"
+    ".claude/settings.json"
     ".mcp.json"
     ".env"
   )
