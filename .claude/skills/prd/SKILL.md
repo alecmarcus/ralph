@@ -26,7 +26,7 @@ If `$ARGUMENTS` is empty or `help`, show usage and exit.
 ### Step 1: Read inputs
 
 1. Read each specified file using the Read tool. If a path is a glob (contains `*`), expand it with Glob first.
-2. If `--append` is set and `.loom/prd.json` exists, read it to understand existing stories (avoid duplicating work, continue ID numbering).
+2. If `append` is set and `.loom/prd.json` exists, read it to understand existing stories (avoid duplicating work, continue ID numbering).
 3. Read any existing codebase files that help contextualize the spec (look for `src/`, `lib/`, `package.json`, `Cargo.toml`, etc. — keep it lightweight, just enough to understand the tech stack and existing structure).
 4. **Preserve source contents verbatim.** For every source file read, retain the full text in working memory. You will copy relevant sections directly into story descriptions — do not paraphrase or summarize unless the original text is ambiguous. The source document is the specification; the PRD is a structured decomposition of it, not a rewrite.
 5. Break excessively large files down into windows and assign to subagents, to avoid hitting token limits for your context window (~150k) or agent return windows (32k).
@@ -225,7 +225,7 @@ If any gaps are found, fix them before proceeding.
 
 ### Step 4: Write output
 
-1. If `--append`:
+1. If `append`:
    - Read the existing PRD
    - Merge new gates (add new ones, don't duplicate existing)
    - Append new stories (don't modify existing stories)
@@ -260,4 +260,4 @@ PRD generated: .loom/prd.json
     gate-6  Polish & Documentation  P2   5 stories
 ```
 
-If the story count exceeds `--max`, note which stories were omitted and suggest running `/prd --append` with the remaining scope.
+If the story count exceeds `max`, note which stories were omitted and suggest running `/prd append` with the remaining scope.
