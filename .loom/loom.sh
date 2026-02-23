@@ -563,9 +563,8 @@ Automated changes by Loom.
     --label "$pr_labels" \
     2>>"$LOG_FILE") || true
 
-  PR_CREATED=true
-
   if [ -n "$pr_url" ]; then
+    PR_CREATED=true
     log "${GREEN}${BOLD}PR created:${NC} $pr_url"
     mkdir -p "$LOOM_DIR/logs"
     echo "$(date '+%Y-%m-%d %H:%M:%S') | PR | $pr_url | $WORKTREE_BRANCH" >> "$LOOM_DIR/logs/master.log"
