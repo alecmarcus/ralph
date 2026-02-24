@@ -332,11 +332,16 @@ if [ -f "$CLAUDEMD" ]; then
     tmpfile="${CLAUDEMD}.tmp"
     replfile="${CLAUDEMD}.repl"
     printf '%s\n' "$LOOM_SECTION" > "$replfile"
-    awk '
-      /<!-- loom:begin -->/ { while ((getline line < REPLFILE) > 0) print line; skip=1; next }
-      /<!-- loom:end -->/ { skip=0; next }
-      !skip { print }
-    ' REPLFILE="$replfile" "$CLAUDEMD" > "$tmpfile" && mv "$tmpfile" "$CLAUDEMD"
+    awk -v replfile="$replfile" '
+      /<!-- loom:begin -->/ {
+        while ((getline line < replfile) > 0) print line
+        close(replfile)
+        skip = 1
+        next
+      }
+      /<!-- loom:end -->/ { skip = 0; next }
+      skip == 0 { print }
+    ' "$CLAUDEMD" > "$tmpfile" && mv "$tmpfile" "$CLAUDEMD"
     rm -f "$replfile" "$tmpfile"
     echo -e "  ${GREEN}✓${NC} Updated Loom section in CLAUDE.md"
   else
