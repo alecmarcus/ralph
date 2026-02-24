@@ -70,7 +70,8 @@ Safety is enforced by Claude Code hooks — not just prompt instructions:
 | `background-tasks.sh` | Forces all subagents to run in background |
 | `status-kill.sh` | Hard-kills the agent when `status.md` is written |
 | `stop-guard.sh` | Blocks exit until `status.md` has been updated |
-| `subagent-stop-guard.sh` | Validates subagent output is non-empty |
+| `subagent-recall.sh` | Nudges subagents to check .docs, CLAUDE.md, and memory before starting |
+| `subagent-stop-guard.sh` | Validates subagent output and nudges to update docs + memory |
 
 ## Prerequisites
 
@@ -327,6 +328,7 @@ Statuses: `pending` → `in_progress` → `done` | `blocked` | `cancelled`
 │   ├── block-task-output.sh
 │   ├── status-kill.sh
 │   ├── stop-guard.sh
+│   ├── subagent-recall.sh
 │   └── subagent-stop-guard.sh
 └── logs/                 # Per-iteration logs + master.log
 ```
