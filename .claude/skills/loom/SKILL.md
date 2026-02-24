@@ -1,7 +1,7 @@
 ---
 name: loom
 description: Start the Loom autonomous development loop, or set up integrations from remote guides. Launches a tmux session that continuously reads tasks from a PRD, dispatches parallel subagents, runs tests, and commits passing code.
-argument-hint: "[status|stop|kill|dry-run|setup <query>|github|linear|slack|notion|sentry|<directive text>]"
+argument-hint: "[setup <query>|status|stop|kill|dry-run|github|linear|slack|notion|sentry|<directive text>]"
 disable-model-invocation: true
 allowed-tools: Bash, Read, Write, Edit, Glob, Grep, WebFetch
 ---
