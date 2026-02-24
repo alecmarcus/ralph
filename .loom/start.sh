@@ -148,7 +148,7 @@ while [[ $# -gt 0 ]]; do
       ;;
     -h|--help)
       cat <<'HELPEOF'
-Usage: loom.sh [OPTIONS]
+Usage: start.sh [OPTIONS]
 
 Options:
   -m, --max-iterations N   Maximum loop iterations (default: 500)
@@ -166,12 +166,12 @@ Sources (can be combined):
   --sentry URL_OR_QUERY   Fetch Sentry issue via MCP, fix the error
 
   Multiple sources can be combined:
-    loom.sh --linear PHN-42 --github 13 --prompt "Also fix lint"
+    start.sh --linear PHN-42 --github 13 --prompt "Also fix lint"
 
   Without a source flag, runs in PRD mode (reads prd.json).
   A directive can also be piped via stdin:
-    echo 'Fix all lint errors' | loom.sh
-    echo 'Only work on AC-001' | loom.sh --dry-run
+    echo 'Fix all lint errors' | start.sh
+    echo 'Only work on AC-001' | start.sh --dry-run
 
 Worktree:
   --worktree              Git worktree isolation (default: on)

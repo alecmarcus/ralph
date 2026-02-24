@@ -45,7 +45,7 @@ fi
 # Safety check: don't install Loom into the Loom repo itself
 if [ "$TARGET_DIR" = "$SCRIPT_DIR" ] && [ -d "$SCRIPT_DIR/.loom" ]; then
   echo -e "${GREEN}Loom is already set up in this directory.${NC}"
-  echo -e "Run ${BOLD}.loom/loom.sh --help${NC} to get started."
+  echo -e "Run ${BOLD}.loom/start.sh --help${NC} to get started."
   exit 0
 fi
 
@@ -107,7 +107,7 @@ mkdir -p "$TARGET_DIR/.loom/hooks"
 mkdir -p "$TARGET_DIR/.loom/logs"
 
 # Copy scripts
-cp "$LOOM_SOURCE/loom.sh"        "$TARGET_DIR/.loom/loom.sh"
+cp "$LOOM_SOURCE/start.sh"        "$TARGET_DIR/.loom/start.sh"
 cp "$LOOM_SOURCE/loom-status.sh" "$TARGET_DIR/.loom/loom-status.sh"
 cp "$LOOM_SOURCE/prd.sh"    "$TARGET_DIR/.loom/prd.sh"
 cp "$LOOM_SOURCE/stop.sh"         "$TARGET_DIR/.loom/stop.sh"
@@ -130,7 +130,7 @@ if [ ! -f "$TARGET_DIR/.loom/status.md" ] || grep -q "No iterations run yet" "$T
 fi
 
 # Make scripts executable
-chmod +x "$TARGET_DIR/.loom/loom.sh"
+chmod +x "$TARGET_DIR/.loom/start.sh"
 chmod +x "$TARGET_DIR/.loom/loom-status.sh"
 chmod +x "$TARGET_DIR/.loom/prd.sh"
 chmod +x "$TARGET_DIR/.loom/stop.sh"
@@ -363,12 +363,12 @@ echo -e "     Open ${DIM}.loom/prd.json${NC} and replace the example story with 
 echo -e "     Each story needs: id, title, description, acceptanceCriteria, files, status."
 echo ""
 echo -e "  2. ${BOLD}Start the loop${NC}"
-echo -e "     ${DIM}\$.loom/loom.sh${NC}"
+echo -e "     ${DIM}\$.loom/start.sh${NC}"
 echo -e "     Or from Claude Code: ${DIM}/loom${NC}"
 echo ""
 echo -e "  3. ${BOLD}Quick directive${NC} (skip the PRD)"
-echo -e "     ${DIM}\$.loom/loom.sh --prompt \"Fix all lint errors\"${NC}"
-echo -e "     ${DIM}echo 'Add auth middleware' | .loom/loom.sh${NC}"
+echo -e "     ${DIM}\$.loom/start.sh --prompt \"Fix all lint errors\"${NC}"
+echo -e "     ${DIM}echo 'Add auth middleware' | .loom/start.sh${NC}"
 echo ""
 echo -e "  4. ${BOLD}Monitor${NC}"
 echo -e "     ${DIM}tmux attach -t loom-$(basename "$TARGET_DIR")${NC}"
@@ -378,4 +378,4 @@ echo -e "  5. ${BOLD}Stop${NC}"
 echo -e "     ${DIM}touch .loom/.stop${NC}  (finishes current iteration)"
 echo -e "     ${DIM}tmux kill-session -t loom-$(basename "$TARGET_DIR")${NC}  (immediate)"
 echo ""
-echo -e "  Run ${BOLD}.loom/loom.sh --help${NC} for all options."
+echo -e "  Run ${BOLD}.loom/start.sh --help${NC} for all options."

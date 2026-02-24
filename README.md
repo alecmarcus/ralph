@@ -39,7 +39,7 @@ You can loom from inside Claude Code, or with the bash script.
 
 ```
 ┌─────────────────────────────────────────────────┐
-│                  loom.sh (loop)                 │
+│                  start.sh (loop)                 │
 │                                                 │
 │  ┌───────────┐    ┌──────────┐    ┌──────────┐  │
 │  │ Read PRD  │───▶│ Dispatch │───▶│  Tests   │  │
@@ -138,7 +138,7 @@ The setup script:
 
 ## Usage
 
-Everything in Loom can be run from the `/loom` slash command inside Claude Code or from the `.loom/loom.sh` bash script directly. Both support the same sources and options.
+Everything in Loom can be run from the `/loom` slash command inside Claude Code or from the `.loom/start.sh` bash script directly. Both support the same sources and options.
 
 ### Sources
 
@@ -148,7 +148,7 @@ Sources tell Loom where to get work. Without a source, Loom defaults to PRD mode
 |--------|-----------|-------------------|---------|-------------------|------|
 | PRD | *(default)* | `/loom` | — | — | — |
 | Prompt | `--prompt` | `/loom <text>` | text, file path | — | — |
-| Piped | `echo "..." \| .loom/loom.sh` | — | stdin | — | — |
+| Piped | `echo "..." \| .loom/start.sh` | — | stdin | — | — |
 | GitHub | `--github` | `/loom github` | issue #, URL, search query | `gh` CLI | `gh auth login` |
 | Linear | `--linear` | `/loom linear` | ticket ID, URL, search query | Linear MCP | Linear API key |
 | Slack | `--slack` | `/loom slack` | permalink URL | Slack MCP | Slack OAuth |
@@ -162,15 +162,15 @@ Loom always runs in a git worktree — an isolated branch so your main tree stay
 ```bash
 # PRD mode — work through stories until done
 /loom
-.loom/loom.sh
+.loom/start.sh
 
 # Directive — give it a task directly
 /loom Refactor all callbacks to async/await
-.loom/loom.sh --prompt "Fix all lint errors"
+.loom/start.sh --prompt "Fix all lint errors"
 
 # GitHub — issue number, URL, or search
 /loom github 42
-.loom/loom.sh --github "https://github.com/org/repo/issues/42"
+.loom/start.sh --github "https://github.com/org/repo/issues/42"
 
 # Linear — ticket ID, URL, or natural language
 /loom linear TEAM-42
@@ -188,7 +188,7 @@ Loom always runs in a git worktree — an isolated branch so your main tree stay
 /loom sentry "TypeError in checkout flow"
 
 # Combine sources
-.loom/loom.sh --github 42 --prompt "Also fix the related lint warnings"
+.loom/start.sh --github 42 --prompt "Also fix the related lint warnings"
 ```
 
 ### Generating a PRD
@@ -314,7 +314,7 @@ Statuses: `pending` → `in_progress` → `done` | `blocked` | `cancelled`
 └── prd/SKILL.md          # /prd skill (PRD generator)
 
 .loom/
-├── loom.sh              # Main loop controller
+├── start.sh              # Main loop controller
 ├── loom-status.sh       # Status reporter
 ├── prd.sh          # Standalone PRD generator
 ├── stop.sh               # Graceful stop helper
