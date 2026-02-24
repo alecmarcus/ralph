@@ -148,6 +148,7 @@ if [ -n "$SKILLS_SOURCE" ] && [ -d "$SKILLS_SOURCE" ]; then
   cp "$SKILLS_SOURCE/loom/exec.md"   "$TARGET_DIR/.claude/skills/loom/exec.md"
   cp "$SKILLS_SOURCE/loom/setup.md"  "$TARGET_DIR/.claude/skills/loom/setup.md"
   cp "$SKILLS_SOURCE/prd/SKILL.md"   "$TARGET_DIR/.claude/skills/prd/SKILL.md"
+  cp "$SKILLS_SOURCE/prd/exec.md"    "$TARGET_DIR/.claude/skills/prd/exec.md"
 else
   if [ ! -f "$TARGET_DIR/.claude/skills/loom/SKILL.md" ]; then
     die "Could not find skill sources. Copy them manually from the Loom repo."
