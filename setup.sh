@@ -356,9 +356,9 @@ fi
 # ─── Done ────────────────────────────────────────────────────────
 echo ""
 if $UPDATING; then
-  echo -e "${GREEN}${BOLD}Loom updated successfully!${NC}"
+  echo -e "${GREEN}${BOLD}Loom updated successfully.${NC}"
 else
-  echo -e "${GREEN}${BOLD}Loom installed successfully!${NC}"
+  echo -e "${GREEN}${BOLD}Loom installed successfully.${NC}"
 fi
 echo ""
 echo -e "${CYAN}Next steps:${NC}"
