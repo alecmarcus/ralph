@@ -35,8 +35,15 @@ You must write a fresh status report before exiting:
   - Tests Added / Updated
   - Outcomes (story ID or directive summary, pass/fail for each)
 
-Also ensure all commits (if tests pass) and Vestige memory storage
-are done before writing status.md — the write triggers an immediate kill.
+Before writing status.md, also check if documentation needs updating:
+  - Root .docs/ and CLAUDE.md — update if you changed project-wide patterns,
+    APIs, architecture, or conventions that future agents need to know about.
+  - Feature-scoped .docs/ and CLAUDE.md — if you worked in a feature directory
+    (e.g. src/auth/), create or update a .docs/ dir and/or CLAUDE.md there
+    with usage notes, constraints, and gotchas specific to that feature.
+
+Ensure all commits (if tests pass), documentation updates, and Vestige memory
+storage are done before writing status.md — the write triggers an immediate kill.
 MSG
     exit 2
   fi

@@ -77,6 +77,7 @@ Each subagent prompt **must** include:
 5. A reminder to **only implement the assigned story** — do not "fix" existing code that seems inconsistent with other specs.
 6. If the story has `sources` entries, a reminder that **the source documents are the source of truth** — the subagent should read the referenced source file and section, and if the story's fields conflict with or omit details from the source, follow the source.
 7. If the story has a non-empty `tools` array, tell the subagent which capabilities are available and instruct them to: **write test files** for visual/interaction acceptance criteria using the project's test framework (Playwright tests, Detox/Maestro tests, etc.) as durable verification, and **use MCP tools ad-hoc** during implementation to screenshot, inspect, and debug visual changes before committing. Don't hardcode specific MCP API calls — let the subagent discover available tools via `ListMcpResourcesTool`.
+8. A reminder to **create or update feature-scoped documentation** — if the story adds or changes a feature area, the subagent should create or update a `.docs/` directory and/or `CLAUDE.md` in the relevant directory with usage notes, constraints, and gotchas that aren't obvious from code alone. Skip for trivial changes.
 
 Do **not** combine multiple stories into a single subagent.
 
@@ -113,7 +114,16 @@ When committing, follow these rules:
 - **Do not bundle unrelated changes.** A feature and its tests can share a commit, but two separate features must not.
 - **Stage specific files by name.** Never use `git add -A` or `git add .`.
 
-### 4d — Store Learnings in Memory
+### 4d — Update Documentation
+
+Check if the work done this iteration warrants documentation updates:
+
+- **Root `.docs/` and `CLAUDE.md`** — update if you changed project-wide patterns, APIs, architecture, or conventions that future agents or developers need to know about. Create these if they don't exist and the project has enough structure to benefit from them.
+- **Feature-scoped `.docs/` and `CLAUDE.md`** — if subagents worked in a feature directory (e.g. `src/auth/`, `lib/transport/`), create or update a `.docs/` directory and/or `CLAUDE.md` in that directory with usage notes, constraints, edge cases, and gotchas specific to that feature.
+
+Keep docs concise and practical — focus on what a future agent (or developer) working in this area needs to know that isn't obvious from the code itself. Skip this step if the work was trivial (e.g. fixing a typo, updating a config value).
+
+### 4e — Store Learnings in Memory
 
 Use Vestige to store any operational learnings from this iteration:
 
@@ -123,7 +133,7 @@ Use Vestige to store any operational learnings from this iteration:
 
 Only store things that would be **useful to a future iteration with no memory of this one**. Don't store routine progress — that's what status.md is for.
 
-### 4e — Emit Result Signal
+### 4f — Emit Result Signal
 
 Before writing status.md, output a result signal on its own line so the loop controller can parse it:
 
@@ -132,7 +142,7 @@ Before writing status.md, output a result signal on its own line so the loop con
 - `LOOM_RESULT:FAILED` — nothing completed successfully this iteration
 - `LOOM_RESULT:DONE` — no actionable stories remain in the PRD and no tests are failing; the loop should stop
 
-### 4f — Update Status (LAST STEP — triggers loop restart)
+### 4g — Update Status (LAST STEP — triggers loop restart)
 
 **This must be the final file you write.** Writing to `status.md` signals the loop controller that the iteration is complete. You will be terminated immediately after this write. Ensure all commits and memory storage are done before this step.
 

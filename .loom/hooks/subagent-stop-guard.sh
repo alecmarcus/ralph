@@ -24,4 +24,14 @@ if [ -z "$MESSAGE" ] || [ ${#MESSAGE} -lt 10 ]; then
   exit 0
 fi
 
+# Nudge: remind about feature-scoped documentation.
+# This is non-blocking — stderr is informational.
+if ! echo "$MESSAGE" | grep -qiE '\.docs|CLAUDE\.md'; then
+  cat >&2 <<'MSG'
+Reminder: if this subagent added or changed a feature area, consider creating
+or updating feature-scoped documentation (.docs/ directory and/or CLAUDE.md)
+in the relevant directory with usage notes, constraints, and gotchas.
+MSG
+fi
+
 exit 0
