@@ -2,13 +2,35 @@
 
 Launch the Loom autonomous development loop. You must `unset CLAUDECODE` before running the script so nested `claude` invocations work.
 
+Use this table to map skill `$ARGUMENTS` to script flags where applicable.
+
+| Argument | Flag | Value | Default Value (flag passed, value omitted) |
+| --- | --- | --- | --- |
+| `<prompt>` | `--prompt` | `<prompt>` | None (required) |
+| `dry-run` | `--dry-run` | `true` | None (required) |
+| `github` | `--github` | `true` | None (required) |
+| `linear` | `--linear` | `true` | None (required) |
+| `slack` | `--slack` | `true` | None (required) |
+| `notion` | `--notion` | `true` | None (required) |
+| `sentry` | `--sentry` | `true` | None (required) |
+| `resume <directory>` | `--resume` | `<directory>` | none (handled by the script) |
+| `wt <bool>` | `--worktree` | `<bool>` | `true` |
+| `worktree <bool>` | `--worktree <bool>` | `true` | `true` |
+| `pr <bool>` | `--pr <bool>` | `true` | `true` |
+
 ## Routing
 
 Look at `$ARGUMENTS` and determine which case applies:
 
 ### Case 1: No arguments (`$ARGUMENTS` is empty)
 
-Start the loop:
+Check if you're in a loom worktree or branch already, or if there are logs from recent iterations that are still fresh (happened in last several hours and relate to the most recent commits or uncommitted working changes). If so, resume in the current branch:
+
+```bash
+unset CLAUDECODE && .loom/start.sh --resume
+```
+
+Otherwise start the loop:
 
 ```bash
 unset CLAUDECODE && .loom/start.sh

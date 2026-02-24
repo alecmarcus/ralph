@@ -1,7 +1,7 @@
 ---
 name: prd
 description: Generate a structured PRD from spec files, planning docs, or design sketches. Decomposes documents into atomic stories grouped into prioritized gates with dependency tracking.
-argument-hint: "<files...> [append] [prefix PREFIX] [max N]"
+argument-hint: "<files...> [append] [prefix <PREFIX>] [max <#>]"
 disable-model-invocation: true
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Task
 ---
