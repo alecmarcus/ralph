@@ -220,11 +220,12 @@ The PRD generator decomposes your documents into atomic stories grouped into pri
 
 ### Monitoring
 
-Loom launches in a tmux session with three panes:
+Loom launches in a tmux session with four panes:
 
 | Pane | Content |
 |------|---------|
-| Top | Live Claude Code output |
+| Top (fixed) | Session header — PID, mode, config (always visible) |
+| Middle | Live Claude Code output |
 | Bottom-left | `status.md` (refreshes every 3s) |
 | Bottom-right | `master.log` tail |
 
