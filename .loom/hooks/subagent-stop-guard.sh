@@ -24,35 +24,10 @@ if [ -z "$MESSAGE" ] || [ ${#MESSAGE} -lt 10 ]; then
   exit 0
 fi
 
-# ─── Check: documentation updated ──────────────────────────────
-# Nudge subagents to maintain .docs artifacts alongside code changes.
-# This is advisory (block + continue), not a hard gate.
+# ─── Nudge: docs and memory ──────────────────────────────────────
+# Always nudge. Advisory (block + continue), not a hard gate.
 
-NUDGES=""
-
-# Check if the subagent touched code but didn't mention .docs updates
-if echo "$MESSAGE" | grep -qiE '(created|added|implemented|built|wrote)' && \
-   ! echo "$MESSAGE" | grep -qiE '(\.docs|CLAUDE\.md|documentation|ADR|adr|lessons)'; then
-  NUDGES="Documentation reminder: If your changes introduce new patterns, architectural decisions, or lessons learned, update the relevant .docs/ artifacts and/or CLAUDE.md:
-  - Root .docs/ and CLAUDE.md for project-wide knowledge (ADRs, specs, lessons, architecture)
-  - Feature-scoped .docs/ and CLAUDE.md (e.g. src/auth/.docs/) for feature-specific design notes, API decisions, and internal conventions
-  Create feature-scoped .docs/ directories when a feature area has design context worth preserving close to the code."
-fi
-
-# Check if the subagent discovered patterns/gotchas but didn't mention Vestige
-if echo "$MESSAGE" | grep -qiE '(pattern|gotcha|workaround|discovered|learned|tricky|edge case|caveat)' && \
-   ! echo "$MESSAGE" | grep -qiE '(memory|stored|logged|recorded|persisted|vestige|smart_ingest|remember_pattern)'; then
-  NUDGES="${NUDGES:+$NUDGES
-
-}Memory reminder: If you discovered patterns, gotchas, or architectural decisions worth preserving, store them using available memory storage or tools so future iterations can benefit."
-fi
-
-if [ -n "$NUDGES" ]; then
-  jq -n --arg reason "$NUDGES" '{
-    decision: "block",
-    reason: $reason
-  }'
-  exit 0
-fi
-
-exit 0
+jq -n '{
+  decision: "block",
+  reason: "Before finishing, check if your work warrants updates to:\n\nDocumentation:\n  - Root .docs/ and CLAUDE.md for project-wide knowledge (ADRs, specs, lessons, architecture)\n  - Feature-scoped .docs/ and CLAUDE.md (e.g. src/auth/.docs/) for feature-specific design notes, API decisions, and internal conventions\n  Create feature-scoped .docs/ directories when a feature area has design context worth preserving close to the code.\n\nMemory:\n  - If you discovered patterns, gotchas, or architectural decisions worth preserving, store them using available memory storage or tools so future iterations can benefit."
+}'
