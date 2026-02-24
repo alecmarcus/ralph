@@ -49,11 +49,10 @@ if [ "$TARGET_DIR" = "$SCRIPT_DIR" ] && [ -d "$SCRIPT_DIR/.loom" ]; then
   exit 0
 fi
 
-echo -e "${CYAN}"
-echo "  ╔═══════════════════════════════════════════╗"
-echo "  ║           L O O M   S E T U P             ║"
-echo "  ╚═══════════════════════════════════════════╝"
-echo -e "${NC}"
+echo ""
+echo -e "  ${BOLD}${CYAN}Loom ∞${NC}"
+echo -e "  ${DIM}Autonomous development orchestrator${NC}"
+echo ""
 echo -e "  ${DIM}Source${NC}  $LOOM_SOURCE"
 echo -e "  ${DIM}Target${NC}  $TARGET_DIR"
 echo ""
