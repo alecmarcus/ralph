@@ -80,6 +80,19 @@ Safety is enforced by Claude Code hooks — not just prompt instructions:
 - [mdq](https://github.com/yshavit/mdq) (markdown query tool, used by `/prd` to extract sections from spec files)
 - [tmux](https://github.com/tmux/tmux/wiki) (recommended — provides split-pane monitoring)
 
+### Optional MCP servers
+
+Loom subagents can use any MCP tools configured in the project. These are useful for stories with visual, browser, or mobile acceptance criteria.
+
+| MCP | Install | What it provides |
+|-----|---------|------------------|
+| [Playwright](https://github.com/microsoft/playwright-mcp) | `claude mcp add playwright -- npx @playwright/mcp@latest --headless` | Browser automation, screenshots, DOM interaction. Use `--headless` for unattended Loom runs. |
+| [Mobile MCP](https://github.com/mobile-next/mobile-mcp) | `claude mcp add mobile -- npx -y @mobilenext/mobile-mcp@latest` | iOS Simulator + Android Emulator screenshots, tap, swipe, app management. Requires a running simulator/emulator. |
+| [Figma](https://github.com/GLips/Figma-Context-MCP) | `claude mcp add figma -- npx -y figma-developer-mcp --figma-api-key=TOKEN --stdio` | Fetch design data and screenshots from Figma files. Uses a Personal Access Token (no interactive OAuth), so it works unattended. |
+| [Official Figma](https://developers.figma.com/docs/figma-mcp-server/) | `claude mcp add --transport http figma https://mcp.figma.com/mcp` | Full Figma integration (Code Connect, design system rules, bidirectional). Requires interactive OAuth on first use — better for interactive sessions than unattended Loom runs. |
+
+To scope an MCP server to a single project, add it to your project's `.mcp.json` instead of global config. Loom copies `.mcp.json` into worktrees automatically.
+
 ## Installation
 
 You can run the remote install script, which shallow-clones the necessary files from this repo into a temporary directory, installs brew deps, runs `setup.sh` in the cwd, and cleans itself up after.
