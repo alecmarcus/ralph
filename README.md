@@ -99,19 +99,7 @@ If you prefer not to use the plugin marketplace:
 curl -fsSL https://raw.githubusercontent.com/alecmarcus/loom/main/install.sh | bash
 ```
 
-This clones Loom to `~/.loom`. Load it when starting Claude Code:
-
-```bash
-claude --plugin-dir ~/.loom
-```
-
-Or add a shell alias for permanent use:
-
-```bash
-echo 'alias claude-loom="claude --plugin-dir ~/.loom"' >> ~/.zshrc
-```
-
-Update with `git -C ~/.loom pull` or re-run the install script.
+This clones Loom to `~/.loom` and configures your shell so `claude` always loads it. Restart your terminal after installing. Update with `git -C ~/.loom pull` or re-run the script.
 
 ### Initialize your project
 

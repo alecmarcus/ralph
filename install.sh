@@ -5,11 +5,13 @@ set -euo pipefail
 # curl -fsSL https://raw.githubusercontent.com/alecmarcus/loom/main/install.sh | bash
 #
 # Alternative to the plugin marketplace install. Clones the repo
-# and registers it as a local plugin directory.
+# and configures your shell so `claude` always loads Loom.
 # ─────────────────────────────────────────────────────────────────
 
 INSTALL_DIR="${LOOM_INSTALL_DIR:-$HOME/.loom}"
 REPO_URL="https://github.com/alecmarcus/loom.git"
+SHELL_MARKER="# loom plugin"
+SHELL_LINE="alias claude='claude --plugin-dir $INSTALL_DIR' $SHELL_MARKER"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -37,8 +39,8 @@ if [ ${#MISSING[@]} -gt 0 ]; then
     echo -e "  - $dep"
   done
   echo ""
-  [ ! -x "$(command -v claude 2>/dev/null)" ] && echo -e "  Install Claude Code: ${DIM}https://docs.anthropic.com/en/docs/claude-code/overview${NC}"
-  [ ! -x "$(command -v jq 2>/dev/null)" ] && echo -e "  Install jq: ${DIM}brew install jq${NC} or ${DIM}apt install jq${NC}"
+  command -v claude &>/dev/null || echo -e "  Install Claude Code: ${DIM}https://docs.anthropic.com/en/docs/claude-code/overview${NC}"
+  command -v jq &>/dev/null     || echo -e "  Install jq: ${DIM}brew install jq${NC} or ${DIM}apt install jq${NC}"
   die "Install missing dependencies and try again."
 fi
 
@@ -50,11 +52,11 @@ fi
 
 # ─── Clone or update ────────────────────────────────────────────
 if [ -d "$INSTALL_DIR/.git" ]; then
-  echo -e "  ${DIM}Updating existing install at $INSTALL_DIR...${NC}"
+  echo -e "  ${DIM}Updating existing install...${NC}"
   git -C "$INSTALL_DIR" pull --ff-only origin main 2>/dev/null || {
     echo -e "  ${YELLOW}Pull failed — re-cloning...${NC}"
     rm -rf "$INSTALL_DIR"
-    git clone "$REPO_URL" "$INSTALL_DIR"
+    git clone --depth 1 "$REPO_URL" "$INSTALL_DIR"
   }
   echo -e "  ${GREEN}✓${NC} Updated"
 else
@@ -62,7 +64,7 @@ else
     die "$INSTALL_DIR already exists but is not a git repo. Remove it or set LOOM_INSTALL_DIR."
   fi
   echo -e "  ${DIM}Cloning to $INSTALL_DIR...${NC}"
-  git clone "$REPO_URL" "$INSTALL_DIR"
+  git clone --depth 1 "$REPO_URL" "$INSTALL_DIR"
   echo -e "  ${GREEN}✓${NC} Cloned"
 fi
 
@@ -70,21 +72,63 @@ fi
 chmod +x "$INSTALL_DIR/scripts/"*.sh
 chmod +x "$INSTALL_DIR/scripts/hooks/"*.sh 2>/dev/null || true
 
+# ─── Configure shell ────────────────────────────────────────────
+# Detect RC file
+detect_rc() {
+  local shell_name
+  shell_name="$(basename "${SHELL:-/bin/bash}")"
+  case "$shell_name" in
+    zsh)  echo "$HOME/.zshrc" ;;
+    bash)
+      # macOS uses .bash_profile for login shells
+      if [ -f "$HOME/.bash_profile" ]; then
+        echo "$HOME/.bash_profile"
+      else
+        echo "$HOME/.bashrc"
+      fi
+      ;;
+    fish) echo "$HOME/.config/fish/config.fish" ;;
+    *)    echo "$HOME/.profile" ;;
+  esac
+}
+
+RC_FILE="$(detect_rc)"
+SHELL_NAME="$(basename "${SHELL:-/bin/bash}")"
+
+if [ "$SHELL_NAME" = "fish" ]; then
+  SHELL_LINE="alias claude 'claude --plugin-dir $INSTALL_DIR' $SHELL_MARKER"
+fi
+
+# Resolve symlinks so sed -i works on the real file
+RC_FILE_REAL="$(readlink -f "$RC_FILE" 2>/dev/null || readlink "$RC_FILE" 2>/dev/null || echo "$RC_FILE")"
+
+if grep -qF "$SHELL_MARKER" "$RC_FILE_REAL" 2>/dev/null; then
+  # Already configured — update in case install dir changed
+  if grep -qF "$SHELL_LINE" "$RC_FILE_REAL" 2>/dev/null; then
+    echo -e "  ${GREEN}✓${NC} Shell already configured"
+  else
+    # Replace existing loom line (use temp file for portability)
+    grep -vF "$SHELL_MARKER" "$RC_FILE_REAL" > "${RC_FILE_REAL}.loom-tmp"
+    printf '%s\n' "$SHELL_LINE" >> "${RC_FILE_REAL}.loom-tmp"
+    mv "${RC_FILE_REAL}.loom-tmp" "$RC_FILE_REAL"
+    echo -e "  ${GREEN}✓${NC} Updated shell config in $RC_FILE"
+  fi
+else
+  # Append
+  printf '\n%s\n' "$SHELL_LINE" >> "$RC_FILE_REAL"
+  echo -e "  ${GREEN}✓${NC} Added to $RC_FILE"
+fi
+
 # ─── Done ────────────────────────────────────────────────────────
 echo ""
-echo -e "  ${GREEN}${BOLD}Loom installed to $INSTALL_DIR${NC}"
+echo -e "  ${GREEN}${BOLD}Loom installed!${NC}"
 echo ""
-echo -e "  ${CYAN}Usage:${NC}"
+echo -e "  Restart your terminal, then in any project:"
 echo ""
-echo -e "  Load Loom when starting Claude Code:"
-echo -e "    ${BOLD}claude --plugin-dir $INSTALL_DIR${NC}"
+echo -e "    ${BOLD}claude${NC}          ${DIM}# loom is loaded automatically${NC}"
+echo -e "    ${BOLD}/loom:init${NC}      ${DIM}# first-time project setup${NC}"
+echo -e "    ${BOLD}/loom:start${NC}     ${DIM}# start the loop${NC}"
 echo ""
-echo -e "  Or add a shell alias for permanent use:"
-echo -e "    ${DIM}echo 'alias claude-loom=\"claude --plugin-dir $INSTALL_DIR\"' >> ~/.zshrc${NC}"
-echo ""
-echo -e "  Then initialize your project:"
-echo -e "    ${BOLD}/loom:init${NC}"
-echo ""
-echo -e "  ${CYAN}Update:${NC}"
-echo -e "    Re-run this script, or: ${DIM}git -C $INSTALL_DIR pull${NC}"
+echo -e "  ${DIM}Update: re-run this script or git -C $INSTALL_DIR pull${NC}"
+echo -e "  ${DIM}Uninstall: rm -rf $INSTALL_DIR && remove the loom line from $RC_FILE${NC}"
 echo ""
