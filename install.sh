@@ -85,11 +85,10 @@ cp "$SRC/templates/claude-md-section.md" "$TARGET_DIR/.loom/templates/"
 
 echo -e "  ${GREEN}✓${NC} Templates"
 
-# ─── Copy setup guides ──────────────────────────────────────────
-if [ -d "$SRC/setup" ]; then
-  cp -r "$SRC/setup" "$TARGET_DIR/.loom/setup"
-  echo -e "  ${GREEN}✓${NC} Setup guides"
-fi
+# ─── Write version file ──────────────────────────────────────────
+VERSION=$(jq -r '.version' "$SRC/.claude-plugin/plugin.json" 2>/dev/null || echo "unknown")
+echo "$VERSION" > "$TARGET_DIR/.loom/.version"
+echo -e "  ${GREEN}✓${NC} Version $VERSION"
 
 # ─── Install skills ─────────────────────────────────────────────
 # Standalone skills (not plugin-namespaced): /loom-start, /loom-stop, etc.

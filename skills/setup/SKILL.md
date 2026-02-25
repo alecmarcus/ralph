@@ -24,18 +24,27 @@ The query is everything the user typed after `setup` (available as `$ARGUMENTS`)
 
 If the query is empty or `help`, show the available guides (from Step 1) and exit.
 
-## Step 1: Fetch the index
+## Step 1: Determine version and fetch the index
 
-First, try to read the setup guide index from the bundled plugin. Read `.loom/.plugin_root` to find the plugin root, then read `setup/README.md` from there:
+Guides are always fetched from GitHub at the version tag matching the current install. Determine the version:
+
+1. Check `.loom/.version` (local installs write this)
+2. Otherwise read `$(cat .loom/.plugin_root)/.claude-plugin/plugin.json` and extract the `version` field with `jq -r .version`
+3. If neither exists, fall back to `main`
+
+Build the base URL from the version:
 
 ```bash
-LOOM="$(cat .loom/.plugin_root)" && cat "$LOOM/setup/README.md"
+# If version is e.g. "1.1.0":
+BASE_URL="https://raw.githubusercontent.com/alecmarcus/loom/v1.1.0/setup"
+# If falling back to main:
+BASE_URL="https://raw.githubusercontent.com/alecmarcus/loom/main/setup"
 ```
 
-If that fails (e.g., `.plugin_root` doesn't exist), fall back to fetching from GitHub:
+Fetch the index:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/alecmarcus/loom/main/setup/README.md
+curl -fsSL "$BASE_URL/README.md"
 ```
 
 This returns a markdown file with two tables listing all available guides, their file paths, and descriptions.
@@ -78,26 +87,14 @@ Show the full index and exit.
 
 ## Step 3: Fetch the guide
 
-Once a guide is identified, try reading from the bundled plugin first:
-
-```bash
-LOOM="$(cat .loom/.plugin_root)" && cat "$LOOM/setup/<relative-path>"
-```
-
-Fall back to fetching from GitHub if needed. The base URL is:
-
-```
-https://raw.githubusercontent.com/alecmarcus/loom/main/setup/
-```
-
-Append the relative path from the index. Examples:
+Fetch the guide from GitHub using the same `BASE_URL` from Step 1. Append the relative path from the index:
 
 ```bash
 # Usage guides (at root)
-curl -fsSL https://raw.githubusercontent.com/alecmarcus/loom/main/setup/large-feature.md
+curl -fsSL "$BASE_URL/large-feature.md"
 
 # Validation guides (in validation/)
-curl -fsSL https://raw.githubusercontent.com/alecmarcus/loom/main/setup/validation/playwright.md
+curl -fsSL "$BASE_URL/validation/playwright.md"
 ```
 
 ## Step 4: Execute the guide
@@ -116,7 +113,7 @@ Adapt to the current project context. For example, if the guide says to add a te
 
 ## Rules
 
-- **Always fetch from GitHub.** Never assume guide contents — they may have been updated since Loom was installed.
+- **Always fetch from GitHub at the version tag.** Never read guides from local files — always use the remote URL so guides match the installed version.
 - **Execute, don't just display.** The user wants the setup done, not a summary of what to do.
 - **Verify each step.** Run verification commands from the guide and report pass/fail.
 - **Stop on failure.** If a prerequisite check fails or an install command errors, stop and report the issue rather than continuing blindly.
