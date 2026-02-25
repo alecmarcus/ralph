@@ -66,7 +66,40 @@ has_sources() {
   [ -n "$SOURCES_SENTRY" ] || [ -n "$SOURCES_PROMPT" ] || [ -n "$SOURCES_PIPED" ]
 }
 
-short_hash() { head -c 4 /dev/urandom | xxd -p | head -c 6; }
+generate_branch_slug() {
+  local context=""
+  if [ -n "$DIRECTIVE_FILE" ] && [ -f "$DIRECTIVE_FILE" ]; then
+    context="$(head -c 2000 "$DIRECTIVE_FILE")"
+  elif [ -n "$SOURCES_PROMPT" ]; then
+    if [ -f "$SOURCES_PROMPT" ]; then
+      context="$(head -c 2000 "$SOURCES_PROMPT")"
+    else
+      context="$SOURCES_PROMPT"
+    fi
+  elif [ -f "$LOOM_DIR/prd.json" ]; then
+    context="$(jq -r '.project + ": " + .description' "$LOOM_DIR/prd.json" 2>/dev/null)"
+  fi
+
+  local prompt
+  if [ -n "$context" ]; then
+    prompt="Output ONLY a 3 word kebab-case git branch slug (lowercase, hyphens, no quotes, no explanation) summarizing this work:
+
+$context"
+  else
+    prompt="Output ONLY a 3 word creative kebab-case git branch slug (lowercase, hyphens, no quotes, no explanation). Pick evocative random words."
+  fi
+
+  local slug
+  slug=$(claude -p --model haiku "$prompt" 2>/dev/null | tr -d '[:space:]' | head -c 50)
+
+  # Sanitize: lowercase, only alphanumeric and hyphens
+  slug=$(echo "$slug" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]/-/g; s/--*/-/g; s/^-//; s/-$//')
+
+  # Ultimate fallback if claude call failed entirely
+  [ -z "$slug" ] && slug="loom-$(date '+%Y%m%d-%H%M%S')"
+
+  echo "$slug"
+}
 
 # ─── Template Resolution ────────────────────────────────────────
 # Local override (per-project) > plugin default
@@ -418,7 +451,7 @@ setup_worktree() {
     return
   fi
 
-  WORKTREE_BRANCH="loom-${timestamp}-$(short_hash)"
+  WORKTREE_BRANCH="loom/$(generate_branch_slug)"
   WORKTREE_DIR="$base_dir/$WORKTREE_BRANCH"
 
   mkdir -p "$base_dir"
@@ -741,6 +774,7 @@ if [ "$USE_WORKTREE" = "yes" ]; then
     cp "$DIRECTIVE_FILE" "$LOOM_DIR/.directive"
     DIRECTIVE_FILE="$LOOM_DIR/.directive"
   fi
+  rm -f "$SOURCE_LOOM_DIR/.directive" "$SOURCE_LOOM_DIR/.piped_directive"
 fi
 
 # ─── MCP Capability Detection ────────────────────────────────
