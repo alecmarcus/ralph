@@ -10,6 +10,12 @@ allowed-tools: Bash, Read, Write
 
 Launch the Loom autonomous development loop. You must `unset CLAUDECODE` before running the script so nested `claude` invocations work.
 
+## Current State
+- Branch: !`git branch --show-current 2>/dev/null || echo "(detached)"`
+- Worktrees: !`git worktree list 2>/dev/null | grep -c "\.claude-worktrees" || echo "0"` active
+- Loom sessions: !`tmux list-sessions 2>/dev/null | grep -c "^loom-" || echo "0"` running
+- Last log: !`tail -3 .loom/logs/master.log 2>/dev/null || echo "(no logs)"`
+
 All scripts are located via the plugin root path stored in `.loom/.plugin_root`. Read it first:
 
 ```bash
@@ -21,6 +27,8 @@ LOOM="$(cat .loom/.plugin_root)"
 Look at `$ARGUMENTS` and determine which case applies:
 
 ### Case 1: No arguments (`$ARGUMENTS` is empty)
+
+**PRD directory pre-emption:** Before launching, check if `.loom/config.json` exists and its `prd` key points to a directory. If that directory contains multiple `.json` files, list them and ask the user which one to use. Then pass the selection as `--prd <file>` to `start.sh`. If only one `.json` file exists in the directory, pass it automatically. This handles the interactive case before handing off to the non-interactive script.
 
 Check if you're in a loom worktree or branch already, or if there are logs from recent iterations that are still fresh (happened in last several hours and relate to the most recent commits or uncommitted working changes). If so, resume in the current branch:
 
@@ -87,6 +95,8 @@ Pass flags through directly to `start.sh`:
 ```bash
 LOOM="$(cat .loom/.plugin_root)" && unset CLAUDECODE && "$LOOM/scripts/start.sh" $ARGUMENTS
 ```
+
+Example: `/loom:start --prd .docs/prds/features.json` → runs with a custom PRD path.
 
 ### Case 10: Arguments are plain text (a prompt)
 

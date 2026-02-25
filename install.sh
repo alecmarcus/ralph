@@ -161,7 +161,10 @@ HOOKS_JSON='{
     "PostToolUse": [
       {
         "matcher": "Write",
-        "hooks": [{ "type": "command", "command": ".loom/scripts/hooks/status-kill.sh" }]
+        "hooks": [
+          { "type": "command", "command": ".loom/scripts/hooks/status-kill.sh" },
+          { "type": "command", "command": ".loom/scripts/hooks/validate-prd.sh" }
+        ]
       }
     ],
     "Stop": [

@@ -123,7 +123,7 @@ Overwrite `.loom/status.md` with a fresh report:
 
 - **Search before assuming.** Always search the codebase before concluding something is missing or needs to be built.
 - **Only commit green code.** Never commit if tests are failing. Leave changes uncommitted for the next iteration.
-- **Do NOT read or modify `.loom/prd.json` unless you were explicitly told to.** This is directive mode, and your focus is only on what you were told to do.
+- **Do NOT read or modify the PRD file unless you were explicitly told to.** This is directive mode, and your focus is only on what you were told to do.
 - **`status.md` is your short-term memory between iterations.** Write it thoroughly.
 - **Vestige is your long-term memory across iterations.** Store patterns, decisions, and gotchas — not progress updates.
 - **Writing `status.md` is always your final action.** You will be killed immediately after. Make sure all other work is done first.

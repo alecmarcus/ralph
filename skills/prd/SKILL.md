@@ -2,13 +2,14 @@
 name: prd
 description: Generate a structured PRD from spec files, planning docs, or design sketches. Decomposes documents into atomic stories grouped into prioritized gates with dependency tracking.
 argument-hint: "<files...> [append] [prefix <PREFIX>] [max <#>]"
+context: fork
 disable-model-invocation: false
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Task
 ---
 
 # /loom:prd
 
-Generates a PRD (`.loom/prd.json`) from `$ARGUMENTS`. Any source is valid, remote or local. Some examples: artifacts like specs, docs, architecture, sketches, ADRs, planning sessions; a URL; an external source available via MCP or cli like Linear, GitHub, Sentry, or Figma; or a plain text prompt.
+Generates a PRD from `$ARGUMENTS`, writing to the resolved PRD output path. Any source is valid, remote or local. Some examples: artifacts like specs, docs, architecture, sketches, ADRs, planning sessions; a URL; an external source available via MCP or cli like Linear, GitHub, Sentry, or Figma; or a plain text prompt.
 
 ## Arguments
 
@@ -20,6 +21,15 @@ Parse `$ARGUMENTS` for:
 - **`max N`**: maximum number of stories to generate (default: no limit)
 
 If `$ARGUMENTS` is empty or `help`, show usage and exit.
+
+## PRD Output Path
+
+Resolve the PRD output path in this order:
+
+1. `.loom/config.json` — if it exists and has a `"prd"` key, use that path. If it points to a directory, resolve to a file inside it (if exactly one `.json` file exists, use it; if multiple exist, ask the user which one to use).
+2. Default: the resolved PRD path
+
+Use the resolved path for all reads and writes below instead of hardcoded the resolved PRD path.
 
 ## Procedure
 
@@ -35,7 +45,7 @@ If `$ARGUMENTS` is empty or `help`, show usage and exit.
    mdq '# Section Name' < file.md
    ```
    `#` is the universal heading selector (matches any depth — h1 through h6). Always use single `#`. Selector values starting with numbers must be quoted (`# "2.1 Crate Structure"`) or use regex (`# /Crate Structure/`). Progressively extract the sections you need to completion. Do not read entire large files into context all at once. Do not skip any sections.
-3. If `append` is set and `.loom/prd.json` exists, read its structure and top-level story metadata with `jq` to understand current status (avoid duplicating work, continue ID numbering).
+3. If `append` is set and the resolved PRD path exists, read its structure and top-level story metadata with `jq` to understand current status (avoid duplicating work, continue ID numbering).
 4. Read any existing codebase files that help contextualize the spec (look for `src/`, `lib/`, `package.json`, `Cargo.toml`, etc. — keep it lightweight, just enough to understand the tech stack and existing structure).
 5. **Preserve source contents verbatim.** The source document is the specification; the PRD is a structured decomposition of it, not a rewrite. Copy relevant sections directly into story fields — do not paraphrase or summarize unless the original text is ambiguous.
 6. Do not omit anything from sources. Expansion is acceptable, but it must build on established patterns, knowledge, or specs, and expansion sources must also be added to story references. Do not expand without referencing expansion sources. Do not paraphrase, reduce, or omit any source content. Do not alter the source's meaning or reduce information density. Only reformat it.
@@ -52,7 +62,7 @@ If `$ARGUMENTS` is empty or `help`, show usage and exit.
    mdq '# Section Name' < file.md
    ```
    `#` is the universal heading selector (matches any depth — h1 through h6). Always use single `#`. Selector values starting with numbers must be quoted (`# "2.1 Crate Structure"`) or use regex (`# /Crate Structure/`). Progressively extract the sections you need to completion. Do not read entire large files into context all at once. Do not skip any sections.
-3. If `append` is set and `.loom/prd.json` exists, read its structure and top-level story metadata with `jq` to understand current status (avoid duplicating work, continue ID numbering).
+3. If `append` is set and the resolved PRD path exists, read its structure and top-level story metadata with `jq` to understand current status (avoid duplicating work, continue ID numbering).
 4. Read any existing codebase files that help contextualize the spec (look for `src/`, `lib/`, `package.json`, `Cargo.toml`, etc. — keep it lightweight, just enough to understand the tech stack and existing structure).
 5. **Preserve source contents verbatim.** The source document is the specification; the PRD is a structured decomposition of it, not a rewrite. Copy relevant sections directly into story fields — do not paraphrase or summarize unless the original text is ambiguous.
 6. Do not omit anything from sources. Expansion is acceptable, but it must build on established patterns, knowledge, or specs, and expansion sources must also be added to story references. Do not expand without referencing expansion sources. Do not paraphrase, reduce, or omit any source content. Do not alter the source's meaning or reduce information density. Only reformat it.
@@ -60,7 +70,7 @@ If `$ARGUMENTS` is empty or `help`, show usage and exit.
 
 ### Step 2: Decompose into PRD
 
-Analyze the input documents and generate a complete PRD. The output is a single JSON object written to `.loom/prd.json`.
+Analyze the input documents and generate a complete PRD. The output is a single JSON object written to the resolved PRD path.
 
 #### Schema
 
@@ -295,17 +305,17 @@ If any gaps are found, fix them before proceeding.
 
 ### Step 4: Write output
 
-1. If `$ARGUMENTS` contains `append`, or if `.loom/prd.json` currently has unfinished or related content to what's been generated:
+1. If `$ARGUMENTS` contains `append`, or if the resolved PRD path currently has unfinished or related content to what's been generated:
    - Read the existing file
    - Merge new gates (add new ones, don't duplicate existing, and never add a gate before a fully completed gate)
    - Append new stories (do not ever modify existing stories. If you need to add to or modify work from a completed story, add a new one that "patches" the old one, and reference it accordingly.)
    - Write the merged result
 2. Otherwise:
-   - Write the complete PRD to `.loom/prd.json`
+   - Write the complete PRD to the resolved PRD path
 3. Never create circular operational dependencies, ie, a story to write an ADR that other stories will then depend on. Blocking sequences and specs may only flow in one direction.
 3. Validate the output:
    ```bash
-   jq '.' .loom/prd.json > /dev/null
+   jq '.' <resolved-prd-path> > /dev/null
    ```
 4. Review your changes to ensure they follow all the rules and capture work in full, contain necessary references, list blockers, properly assign and order gates, do not modify completed stories, and have clean, linear sequencing.
 
@@ -314,7 +324,7 @@ If any gaps are found, fix them before proceeding.
 Show a summary:
 
 ```
-PRD generated: .loom/prd.json
+PRD generated: <resolved-prd-path>
 
   Stories:  47
   Gates:    6 (3×P0, 2×P1, 1×P2)

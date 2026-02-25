@@ -15,7 +15,30 @@ set -euo pipefail
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(pwd)}"
 LOOM_DIR="$PROJECT_DIR/.loom"
 PROJECT_NAME="$(basename "$PROJECT_DIR")"
-PRD_FILE="$LOOM_DIR/prd.json"
+
+# ─── Resolve PRD path ─────────────────────────────────────────────
+# Priority: --prd flag > LOOM_PRD_PATH env > .loom/config.json > default
+resolve_prd_path() {
+  # 1. LOOM_PRD_PATH env (set by start.sh for nested processes)
+  if [ -n "${LOOM_PRD_PATH:-}" ]; then
+    echo "$LOOM_PRD_PATH"
+    return
+  fi
+  # 2. .loom/config.json
+  if [ -f "$LOOM_DIR/config.json" ]; then
+    local cfg_prd
+    cfg_prd=$(jq -r '.prd // empty' "$LOOM_DIR/config.json" 2>/dev/null)
+    if [ -n "$cfg_prd" ]; then
+      [[ "$cfg_prd" != /* ]] && cfg_prd="$PROJECT_DIR/$cfg_prd"
+      echo "$cfg_prd"
+      return
+    fi
+  fi
+  # 3. Default
+  echo "$LOOM_DIR/prd.json"
+}
+
+PRD_FILE="$(resolve_prd_path)"
 
 # Colors
 RED='\033[0;31m'
@@ -50,11 +73,16 @@ while [[ $# -gt 0 ]]; do
       MAX_STORIES="$2"
       shift 2
       ;;
+    --prd)
+      [[ $# -ge 2 ]] || die "$1 requires a path"
+      PRD_FILE="$2"
+      shift 2
+      ;;
     -h|--help)
       cat <<'EOF'
 Usage: prd.sh <files...> [OPTIONS]
 
-Generates .loom/prd.json from specification documents using Claude.
+Generates a PRD from specification documents using Claude.
 
 Arguments:
   <files...>            One or more files to ingest (specs, planning docs, etc.)
@@ -63,12 +91,14 @@ Options:
   -a, --append          Add stories to existing PRD instead of replacing
   -p, --prefix PREFIX   Story ID prefix (default: project dir name, uppercased)
   -m, --max N           Maximum stories to generate
+  --prd PATH            Output PRD file path (default: .loom/prd.json or config)
   -h, --help            Show this help
 
 Examples:
   prd.sh spec.md sketch.md
   prd.sh --append planning-session-02.md
   prd.sh --prefix SCP --max 60 spec.md
+  prd.sh --prd .docs/prds/features.json spec.md
   prd.sh *.md
 EOF
       exit 0

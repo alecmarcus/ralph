@@ -2,6 +2,7 @@
 name: setup
 description: Set up Loom integrations by reading and executing setup guides. Covers Playwright, mobile testing, GitHub issues, Linear, and more.
 argument-hint: "<topic>"
+context: fork
 disable-model-invocation: false
 allowed-tools: Bash, Read, Write, Edit, Glob, Grep, Task
 ---

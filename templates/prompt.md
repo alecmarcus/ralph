@@ -31,12 +31,12 @@ Read `.loom/status.md`.
 
 ## Step 2: Select Stories from the PRD
 
-The PRD lives at `.loom/prd.json`. **Never `cat` the entire file.** Read it in waves of 10 using `jq` to keep context lean. The jq filters below exclude closed stories — they are **never read**.
+The PRD lives at `{{PRD_FILE}}`. **Never `cat` the entire file.** Read it in waves of 10 using `jq` to keep context lean. The jq filters below exclude closed stories — they are **never read**.
 
 ### Wave 1
 
 ```bash
-jq '[.stories[] | select(.status != "done" and .status != "cancelled")] | .[0:10]' .loom/prd.json
+jq '[.stories[] | select(.status != "done" and .status != "cancelled")] | .[0:10]' {{PRD_FILE}}
 ```
 
 Review these 10. Identify which can be executed **in parallel** — stories whose `blockedBy` arrays are empty (or reference only completed stories) and that do **not** modify the same files as each other.
@@ -44,7 +44,7 @@ Review these 10. Identify which can be executed **in parallel** — stories whos
 ### Subsequent waves (if needed)
 
 ```bash
-jq '[.stories[] | select(.status != "done" and .status != "cancelled")] | .[10:20]' .loom/prd.json
+jq '[.stories[] | select(.status != "done" and .status != "cancelled")] | .[10:20]' {{PRD_FILE}}
 ```
 
 Continue until you have identified all actionable stories or have a sufficient parallel batch.
@@ -93,7 +93,7 @@ If tests fail, **fix them now**. Re-run the suite. Repeat until all tests pass o
 
 ### 4b — Update PRD
 
-Update `.loom/prd.json`:
+Update `{{PRD_FILE}}`:
 
 - Set completed stories to `"status": "done"`.
 - Record a short outcome in the story's `"result"` field (add the field if absent).
@@ -175,7 +175,7 @@ Overwrite `.loom/status.md` with a fresh report containing:
 - **One story per subagent.** No exceptions.
 - **Search before assuming.** Always search the codebase before concluding something is missing or needs to be built.
 - **Only commit green code.** Never commit if tests are failing. Leave changes uncommitted for the next iteration.
-- **Always use `jq` to read `prd.json`.** Never cat/read the whole file at once.
+- **Always use `jq` to read the PRD file.** Never cat/read the whole file at once.
 - **`status.md` is your short-term memory between iterations.** Write it thoroughly.
 - **Vestige is your long-term memory across iterations.** Store patterns, decisions, and gotchas — not progress updates.
 - **Writing `status.md` is always your final action.** You will be killed immediately after. Make sure all other work is done first.

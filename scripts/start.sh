@@ -27,6 +27,7 @@ DIRECTIVE_FILE=""
 TIMEOUT=10800
 MAX_FAILURES=3
 CONSECUTIVE_FAILURES=0
+PRD_PATH=""
 
 # ─── Sources (composable — multiple can be combined) ─────────────
 SOURCES_LINEAR=""       # Linear query/URL
@@ -76,8 +77,8 @@ generate_branch_slug() {
     else
       context="$SOURCES_PROMPT"
     fi
-  elif [ -f "$LOOM_DIR/prd.json" ]; then
-    context="$(jq -r '.project + ": " + .description' "$LOOM_DIR/prd.json" 2>/dev/null)"
+  elif [ -n "$PRD_PATH" ] && [ -f "$PRD_PATH" ]; then
+    context="$(jq -r '.project + ": " + .description' "$PRD_PATH" 2>/dev/null)"
   fi
 
   local prompt
@@ -112,6 +113,60 @@ resolve_template() {
   else
     die "Template $name not found"
   fi
+}
+
+# ─── PRD Resolution ─────────────────────────────────────────────
+# Resolution order: --prd flag > .loom/config.json > .loom/prd.json
+resolve_prd() {
+  # 1. --prd flag (already in PRD_PATH)
+  if [ -n "$PRD_PATH" ]; then
+    if [ -d "$PRD_PATH" ]; then
+      local jsons=()
+      while IFS= read -r -d '' f; do
+        jsons+=("$f")
+      done < <(find "$PRD_PATH" -maxdepth 1 -name '*.json' -print0 2>/dev/null | sort -z)
+      case ${#jsons[@]} in
+        0) die "No PRD files found in directory: $PRD_PATH" ;;
+        1) PRD_PATH="${jsons[0]}" ;;
+        *) echo -e "${YELLOW}Multiple PRD files in $PRD_PATH:${NC}" >&2
+           for f in "${jsons[@]}"; do echo "  $(basename "$f")" >&2; done
+           die "Specify which PRD to use with --prd <file>" ;;
+      esac
+    fi
+    [ -f "$PRD_PATH" ] || die "PRD file not found: $PRD_PATH"
+    return
+  fi
+
+  # 2. .loom/config.json
+  if [ -f "$LOOM_DIR/config.json" ]; then
+    local cfg_prd
+    cfg_prd=$(jq -r '.prd // empty' "$LOOM_DIR/config.json" 2>/dev/null)
+    if [ -n "$cfg_prd" ]; then
+      # Resolve relative paths against project dir
+      [[ "$cfg_prd" != /* ]] && cfg_prd="$PROJECT_DIR/$cfg_prd"
+      if [ -d "$cfg_prd" ]; then
+        local jsons=()
+        while IFS= read -r -d '' f; do
+          jsons+=("$f")
+        done < <(find "$cfg_prd" -maxdepth 1 -name '*.json' -print0 2>/dev/null | sort -z)
+        case ${#jsons[@]} in
+          0) die "No PRD files found in directory: $cfg_prd" ;;
+          1) PRD_PATH="${jsons[0]}" ;;
+          *) echo -e "${YELLOW}Multiple PRD files in $cfg_prd:${NC}" >&2
+             for f in "${jsons[@]}"; do echo "  $(basename "$f")" >&2; done
+             die "Specify which PRD to use with --prd <file>" ;;
+        esac
+      elif [ -f "$cfg_prd" ]; then
+        PRD_PATH="$cfg_prd"
+      else
+        die "PRD path from config.json not found: $cfg_prd"
+      fi
+      return
+    fi
+  fi
+
+  # 3. Default
+  PRD_PATH="$LOOM_DIR/prd.json"
 }
 
 # ─── Parse Arguments ────────────────────────────────────────────
@@ -185,6 +240,11 @@ while [[ $# -gt 0 ]]; do
       CREATE_PR=$([ "$2" = "true" ] && echo "yes" || echo "no")
       shift 2
       ;;
+    --prd)
+      [[ $# -ge 2 ]] || die "$1 requires a path to a PRD file or directory"
+      PRD_PATH="$2"
+      shift 2
+      ;;
     --session-name)
       [[ $# -ge 2 ]] || die "$1 requires a value"
       TMUX_SESSION="$2"
@@ -226,6 +286,9 @@ Sources (can be combined):
   A directive can also be piped via stdin:
     echo 'Fix all lint errors' | start.sh
     echo 'Only work on AC-001' | start.sh --preview
+
+PRD:
+  --prd PATH              PRD file or directory (overrides .loom/config.json)
 
 Worktree:
   --worktree              Git worktree isolation (default: on)
@@ -424,6 +487,10 @@ $SOURCES_PIPED")
 if has_sources; then
   build_directive
 fi
+
+# ─── Resolve PRD path ──────────────────────────────────────────
+resolve_prd
+export LOOM_PRD_PATH="$PRD_PATH"
 
 # ─── Worktree Auto-Detection ────────────────────────────────────
 resolve_worktree() {
@@ -719,8 +786,8 @@ fi
 
 # PRD mode requires prd.json
 if ! has_sources; then
-  if [[ ! -f "$LOOM_DIR/prd.json" ]]; then
-    die "$LOOM_DIR/prd.json not found"
+  if [[ ! -f "$PRD_PATH" ]]; then
+    die "PRD file not found: $PRD_PATH"
   fi
 fi
 
@@ -871,6 +938,7 @@ if $USE_TMUX; then
   # Build flags to forward
   FORWARD_FLAGS="--max-iterations $MAX_ITERATIONS --timeout $TIMEOUT --max-failures $MAX_FAILURES"
   if $PREVIEW; then FORWARD_FLAGS="$FORWARD_FLAGS --preview"; fi
+  [ -n "$PRD_PATH" ] && [ "$PRD_PATH" != "$LOOM_DIR/prd.json" ] && FORWARD_FLAGS="$FORWARD_FLAGS --prd $(printf '%q' "$PRD_PATH")"
 
   # Forward sources (each independently)
   [ -n "$SOURCES_LINEAR" ] && FORWARD_FLAGS="$FORWARD_FLAGS --linear $(printf '%q' "$SOURCES_LINEAR")"
@@ -1073,6 +1141,9 @@ while [ "$ITERATION" -lt "$MAX_ITERATIONS" ]; do
     # Normal loop mode: full prompt.md orchestration with PRD
     PROMPT="$(cat "$PROMPT_TEMPLATE")"
   fi
+
+  # Substitute PRD path placeholder
+  PROMPT="${PROMPT//\{\{PRD_FILE\}\}/$PRD_PATH}"
 
   # ─── Iteration marker for stop-guard hook ──
   touch "$LOOM_DIR/.iteration_marker"

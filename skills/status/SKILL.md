@@ -10,6 +10,10 @@ allowed-tools: Bash, Read
 
 Show the current Loom run summary.
 
+## Current State
+- Sessions: !`tmux list-sessions 2>/dev/null | grep "^loom-" || echo "(none)"`
+- PID: !`cat .loom/.pid 2>/dev/null || echo "(none)"`
+
 All scripts are located via the plugin root path stored in `.loom/.plugin_root`. Read it first:
 
 ```bash

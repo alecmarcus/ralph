@@ -2,6 +2,7 @@
 name: init
 description: Initialize a project for Loom. Creates the .loom/ directory with template files and injects the Loom section into CLAUDE.md.
 argument-hint: ""
+context: fork
 disable-model-invocation: false
 allowed-tools: Bash, Read, Write, Edit, Glob
 ---
