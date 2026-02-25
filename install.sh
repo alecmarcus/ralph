@@ -91,18 +91,17 @@ echo "$VERSION" > "$TARGET_DIR/.loom/.version"
 echo -e "  ${GREEN}✓${NC} Version $VERSION"
 
 # ─── Install skills ─────────────────────────────────────────────
-# Standalone skills (not plugin-namespaced): /loom-start, /loom-stop, etc.
 echo -e "  ${DIM}Installing skills...${NC}"
 
 SKILL_MAP=(
-  "start:loom-start"
-  "stop:loom-stop"
-  "kill:loom-kill"
-  "status:loom-status"
-  "preview:loom-preview"
-  "prd:loom-prd"
-  "setup:loom-setup"
-  "init:loom-init"
+  "start:loom:start"
+  "stop:loom:stop"
+  "kill:loom:kill"
+  "status:loom:status"
+  "preview:loom:preview"
+  "prd:loom:prd"
+  "setup:loom:setup"
+  "init:loom:init"
 )
 
 for mapping in "${SKILL_MAP[@]}"; do
@@ -124,7 +123,7 @@ for mapping in "${SKILL_MAP[@]}"; do
   fi
 done
 
-echo -e "  ${GREEN}✓${NC} Skills (as /loom-start, /loom-stop, etc.)"
+echo -e "  ${GREEN}✓${NC} Skills (/loom:start, /loom:stop, etc.)"
 
 # ─── Configure hooks ────────────────────────────────────────────
 echo -e "  ${DIM}Configuring hooks...${NC}"
@@ -250,16 +249,13 @@ echo ""
 echo -e "  ${GREEN}${BOLD}Loom installed!${NC}"
 echo ""
 echo -e "  Installed to:        ${BOLD}$TARGET_DIR/.loom/${NC}"
-echo -e "  Skills:              ${BOLD}$TARGET_DIR/.claude/skills/loom-*${NC}"
+echo -e "  Skills:              ${BOLD}$TARGET_DIR/.claude/skills/loom:*${NC}"
 echo -e "  Hooks:               ${BOLD}$TARGET_DIR/.claude/settings.json${NC}"
 echo ""
-echo -e "  ${CYAN}Note:${NC} Skills are standalone — use ${BOLD}/loom-start${NC}, ${BOLD}/loom-stop${NC}, etc."
-echo -e "  ${DIM}(Plugin install uses /loom:start, /loom:stop — colon namespace is plugin-only)${NC}"
-echo ""
 echo -e "  ${CYAN}Next steps:${NC}"
-echo -e "    1. ${BOLD}/loom-prd spec.md${NC}                  Generate a PRD"
-echo -e "    2. ${BOLD}/loom-start${NC}                        Start the loop"
-echo -e "    3. ${BOLD}/loom-start Fix all lint errors${NC}    Or give it a task"
+echo -e "    1. ${BOLD}/loom:prd spec.md${NC}                  Generate a PRD"
+echo -e "    2. ${BOLD}/loom:start${NC}                        Start the loop"
+echo -e "    3. ${BOLD}/loom:start Fix all lint errors${NC}    Or give it a task"
 echo ""
 echo -e "  ${DIM}Update: re-run this script in the project directory${NC}"
 echo ""

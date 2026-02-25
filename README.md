@@ -93,7 +93,7 @@ claude plugin update loom
 
 ### Local install
 
-Self-contained, per-project install — no plugin system, everything lives in your repo:
+Self-contained, per-project install. No plugins — everything is checked into your repo for complete control:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/alecmarcus/loom/main/install.sh | bash
@@ -101,23 +101,22 @@ curl -fsSL https://raw.githubusercontent.com/alecmarcus/loom/main/install.sh | b
 
 **What it does:**
 - Copies scripts, templates, and setup guides into `.loom/`
-- Installs skills as standalone commands in `.claude/skills/` (`/loom-start`, `/loom-stop`, etc.)
+- Installs skills in `.claude/skills/` (`/loom:start`, `/loom:stop`, etc.)
 - Configures hooks in `.claude/settings.json`
 - Creates `prd.json`, `status.md`, `.gitignore`, and a `CLAUDE.md` section
 - Re-running updates scripts and hooks without overwriting project files
 
-**Differences from plugin install:**
-- Skills use `/loom-start` instead of `/loom:start` (colon namespace is plugin-only)
-- Everything is tracked in your repo — portable and self-contained
-- No external dependency on a plugin directory or marketplace
+Same `/loom:*` skill names as the plugin install. Everything is tracked in your repo — portable and self-contained.
 
 **Update:** Re-run the install script in your project directory.
 
-**Uninstall:** Remove `.loom/`, `.claude/skills/loom-*/`, and the hooks from `.claude/settings.json`.
+**Uninstall:** Remove `.loom/`, `.claude/skills/loom:*/`, and the hooks from `.claude/settings.json`.
 
 ### Initialize your project
 
-After installing via either method:
+**⚠️ Important, don't skip this!**
+
+After installing via **either** method:
 
 ```bash
 /loom:init
