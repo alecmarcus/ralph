@@ -99,6 +99,8 @@ Each subagent prompt **must** include:
 
 Do **not** combine multiple stories into a single subagent.
 
+After launching all subagents, **stop and wait**. Do not make any tool calls. Do not poll with Bash. Do not check git status, read files, or monitor progress. Subagent results are delivered to you automatically when each one completes. You will receive them without doing anything.
+
 ### Step 3a: Merge Subagent Branches
 
 After **all** subagent results have arrived, merge each subagent's branch back into the main worktree. For each result that includes a branch name:
