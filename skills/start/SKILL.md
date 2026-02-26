@@ -140,10 +140,13 @@ LOOM="$(cat .loom/.plugin_root)" && unset CLAUDECODE && "$LOOM/scripts/start.sh"
 **Step 2 — Background watcher** (blocks until loop ends, delivers notification):
 ```bash
 # IMPORTANT: run this with run_in_background: true
-LOOM="$(cat .loom/.plugin_root)" && unset CLAUDECODE && "$LOOM/scripts/start.sh" $FLAGS --wait
+# Only pass --session-name and --wait — no other flags needed
+LOOM="$(cat .loom/.plugin_root)" && "$LOOM/scripts/start.sh" --session-name <SESSION_NAME> --wait
 ```
 
-The `--wait` flag makes the script block until the tmux session ends, then report the final master log. When it completes, the parent Claude session gets a notification. This is how the user knows the loop finished without manually checking tmux.
+Replace `<SESSION_NAME>` with the actual session name from Step 1's output (e.g., `loom-myapp`).
+
+The `--wait` flag skips all initialization and just polls `tmux has-session` until the session ends, then reports the final master log. When it completes, the parent Claude session gets a notification.
 
 ## After launching
 

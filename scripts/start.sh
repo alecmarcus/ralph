@@ -335,6 +335,28 @@ HELPEOF
   esac
 done
 
+# ─── Wait-only mode ──────────────────────────────────────────────
+# When --wait is set, skip all initialization and just watch the
+# tmux session. This is invoked by the start skill as a background
+# task so the parent Claude session gets notified when the loop ends.
+if $WAIT_MODE; then
+  # Wait for session to appear (race: watcher may start before foreground creates it)
+  for _ in $(seq 1 30); do
+    tmux has-session -t "$TMUX_SESSION" 2>/dev/null && break
+    sleep 1
+  done
+  if ! tmux has-session -t "$TMUX_SESSION" 2>/dev/null; then
+    echo "Timed out waiting for tmux session '$TMUX_SESSION' to appear"
+    exit 1
+  fi
+  # Block until the session ends
+  while tmux has-session -t "$TMUX_SESSION" 2>/dev/null; do sleep 5; done
+  echo ""
+  echo "── Loom session '$TMUX_SESSION' ended ──"
+  tail -20 "$LOOM_DIR/logs/master.log" 2>/dev/null
+  exit 0
+fi
+
 # ─── Piped stdin ─────────────────────────────────────────────────
 if [ ! -t 0 ]; then
   # detect_timeout_cmd runs later, so resolve timeout binary inline here
@@ -1094,18 +1116,6 @@ HEADEREOF
   echo -e "  Kill:    ${BOLD}tmux kill-session -t $TMUX_SESSION${NC}"
   echo -e "  Stop:    ${BOLD}touch .loom/.stop${NC} (finishes current iteration)"
 
-  # Wait mode: block until the tmux session ends, then report status.
-  # Used by the start skill as a background Bash task so the parent
-  # Claude session gets notified when the loop finishes.
-  if $WAIT_MODE; then
-    trap - EXIT  # Child owns cleanup, not the watcher
-    while tmux has-session -t "$TMUX_SESSION" 2>/dev/null; do sleep 5; done
-    echo ""
-    echo "── Loom session '$TMUX_SESSION' ended ──"
-    tail -20 "$LOOM_DIR/logs/master.log" 2>/dev/null
-    exit 0
-  fi
-
   # Auto-attach when running from an interactive terminal
   if [ -t 0 ]; then
     exec tmux attach -t "$TMUX_SESSION"
@@ -1463,4 +1473,15 @@ if ! $PREVIEW && [ "$ITERATION" -ge "$MAX_ITERATIONS" ]; then
   log "${YELLOW}${BOLD}Loom completed $MAX_ITERATIONS iterations. Halting.${NC}"
   master_log "$ITERATION" "$MODE_LABEL" "MAX_ITER" "0" "Reached max iterations" "0"
   notify "Loom — Max Iterations" "Completed $MAX_ITERATIONS iterations."
+fi
+
+# ─── Kill tmux session on organic completion ──────────────────────
+# When the loop ends naturally (DONE, graceful stop, max iterations,
+# circuit breaker), kill the enclosing tmux session so it doesn't
+# leave dead panes. The cleanup trap runs first (PR creation, file
+# removal), then this fires as the last act of the script.
+if [ -n "${TMUX:-}" ] && [ -n "$TMUX_SESSION" ]; then
+  # Small delay so final log output is visible
+  sleep 1
+  tmux kill-session -t "$TMUX_SESSION" 2>/dev/null || true
 fi
