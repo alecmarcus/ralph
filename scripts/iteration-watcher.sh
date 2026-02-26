@@ -4,7 +4,7 @@
 # Designed to run as a background Task in the interactive Claude
 # session. Exits when:
 #   1. A new iteration completes (outputs the new log line(s))
-#   2. The tmux session dies (outputs LOOP_TERMINATED + final lines)
+#   2. The loop dies (outputs LOOP_TERMINATED + final lines)
 #
 # Usage: iteration-watcher.sh <session-name> [loom-dir]
 # ─────────────────────────────────────────────────────────────────
@@ -13,12 +13,37 @@ SESSION="${1:?Usage: iteration-watcher.sh <session-name> [loom-dir]}"
 LOOM_DIR="${2:-.loom}"
 LOGFILE="$LOOM_DIR/logs/iterations.log"
 DEBUG_LOG="$LOOM_DIR/logs/debug.log"
+PID_FILE="$LOOM_DIR/.pid"
 
 _dbg() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] [iter-watcher] $1" >> "$DEBUG_LOG" 2>/dev/null || true; }
 
+# Wait for iterations.log to exist (loop may still be initializing)
+WAIT=0
+while [ ! -f "$LOGFILE" ] && [ "$WAIT" -lt 30 ]; do
+  WAIT=$((WAIT + 1))
+  sleep 1
+done
+
 # Baseline: current line count at launch
 BASELINE=$(wc -l < "$LOGFILE" 2>/dev/null || echo 0)
-_dbg "started. session=$SESSION logfile=$LOGFILE baseline=$BASELINE"
+_dbg "started. session=$SESSION logfile=$LOGFILE baseline=$BASELINE pid_file=$PID_FILE"
+
+# Determine liveness check mode: tmux session or PID file
+is_loop_alive() {
+  # Try tmux first
+  if tmux has-session -t "$SESSION" 2>/dev/null; then
+    return 0
+  fi
+  # Fallback: check PID file (inline/nohup mode)
+  if [ -f "$PID_FILE" ]; then
+    local pid
+    pid=$(cat "$PID_FILE" 2>/dev/null)
+    if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
+      return 0
+    fi
+  fi
+  return 1
+}
 
 POLL=0
 while true; do
@@ -34,8 +59,8 @@ while true; do
   fi
 
   # Check if loop is still running
-  if ! tmux has-session -t "$SESSION" 2>/dev/null; then
-    _dbg "poll=$POLL: tmux session '$SESSION' is GONE. Outputting LOOP_TERMINATED."
+  if ! is_loop_alive; then
+    _dbg "poll=$POLL: loop is GONE (no tmux '$SESSION', no live PID). Outputting LOOP_TERMINATED."
     echo "LOOP_TERMINATED"
     [ -f "$LOGFILE" ] && tail -3 "$LOGFILE"
     exit 0
