@@ -794,6 +794,14 @@ parse_result_signal() {
   fi
 }
 
+notify() {
+  # Send a system notification (macOS only for now)
+  local title="$1" body="$2"
+  if [[ "$OSTYPE" == darwin* ]] && command -v osascript &>/dev/null; then
+    osascript -e "display notification \"$body\" with title \"$title\"" 2>/dev/null &
+  fi
+}
+
 # ─── Preflight ───────────────────────────────────────────────────
 if ! command -v claude &>/dev/null; then
   die "claude CLI not found in PATH"
@@ -1153,6 +1161,7 @@ while [ "$ITERATION" -lt "$MAX_ITERATIONS" ]; do
   if [ -f "$LOOM_DIR/.stop" ]; then
     log "${YELLOW}${BOLD}Graceful stop requested${NC} (.loom/.stop found). Halting after iteration $((ITERATION - 1))."
     rm -f "$LOOM_DIR/.stop"
+    notify "Loom — Stopped" "Graceful stop after $((ITERATION - 1)) iterations."
     break
   fi
 
@@ -1160,6 +1169,7 @@ while [ "$ITERATION" -lt "$MAX_ITERATIONS" ]; do
   if [ "$CONSECUTIVE_FAILURES" -ge "$MAX_FAILURES" ]; then
     log "${RED}${BOLD}Circuit breaker tripped:${NC} $CONSECUTIVE_FAILURES consecutive failures. Halting."
     master_log "$ITERATION" "$MODE_LABEL" "HALTED" "0" "Circuit breaker: $CONSECUTIVE_FAILURES consecutive failures" "0"
+    notify "Loom ✗ Circuit Breaker" "$CONSECUTIVE_FAILURES consecutive failures. Halted."
     break
   fi
 
@@ -1383,10 +1393,12 @@ PREVIEWEOF
   fi
 
   master_log "$ITERATION" "$ITER_LABEL" "$ITER_STATUS" "$ITER_DURATION" "$ITER_REASON" "$SUBAGENT_COUNT"
+  notify "Loom — Iter $ITERATION" "$RESULT_SIGNAL (${mins}m ${secs}s, $SUBAGENT_COUNT subagents)"
 
   # ─── Done: no remaining work ──
   if [ "$RESULT_SIGNAL" = "DONE" ]; then
     log "${GREEN}${BOLD}All work complete.${NC} Halting loop."
+    notify "Loom ✓ Complete" "All work done after $ITERATION iterations."
     break
   fi
 
@@ -1433,4 +1445,5 @@ done
 if ! $PREVIEW && [ "$ITERATION" -ge "$MAX_ITERATIONS" ]; then
   log "${YELLOW}${BOLD}Loom completed $MAX_ITERATIONS iterations. Halting.${NC}"
   master_log "$ITERATION" "$MODE_LABEL" "MAX_ITER" "0" "Reached max iterations" "0"
+  notify "Loom — Max Iterations" "Completed $MAX_ITERATIONS iterations."
 fi
