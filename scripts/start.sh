@@ -1321,16 +1321,31 @@ PREVIEWEOF
     CLAUDE_PREFIX="$TIMEOUT_CMD --foreground $TIMEOUT"
   fi
 
+  DISPATCH_LOG="$LOOM_DIR/logs/$(date '+%Y%m%d-%H%M%S')-${ITER_LABEL}-dispatches.jsonl"
+
   set +e
-  # Pipeline: claude | jq (text+tool names) | tee (log capture)
+  # Pipeline: claude | tee (dispatch sidecar) | jq (text+tool names) | tee (log capture)
   # PIPESTATUS[0] = claude (or timeout wrapper)
-  # PIPESTATUS[1] = jq text/tool extraction
-  # PIPESTATUS[2] = tee (log capture)
+  # PIPESTATUS[1] = tee (dispatch sidecar fork)
+  # PIPESTATUS[2] = jq text/tool extraction
+  # PIPESTATUS[3] = tee (log capture)
   $CLAUDE_PREFIX claude -p \
     --dangerously-skip-permissions \
     --output-format stream-json \
     --include-partial-messages \
     "$PROMPT" 2>>"$LOG_FILE" | \
+    tee >(jq --unbuffered -c '
+      select(.type == "stream_event") |
+      if (
+        .event.type? == "content_block_start" and
+        .event.content_block.type? == "tool_use" and
+        .event.content_block.name? == "Task"
+      ) then
+        {ts: now | strftime("%Y-%m-%d %H:%M:%S"), event: "dispatch", index: .event.index}
+      elif .event.type? == "content_block_stop" then
+        {ts: now | strftime("%Y-%m-%d %H:%M:%S"), event: "stop", index: .event.index}
+      else empty end
+    ' >> "$DISPATCH_LOG" 2>/dev/null || true) | \
     jq --unbuffered -rj 'select(.type == "stream_event") |
       if .event.delta.type? == "text_delta" then .event.delta.text
       elif .event.type? == "content_block_start" and .event.content_block.type? == "text" and (.event.index // 0) > 0 then "\n"
@@ -1344,12 +1359,23 @@ PREVIEWEOF
   ITER_END=$(date +%s)
   ITER_DURATION=$((ITER_END - ITER_START))
 
-  # ─── Count Task dispatches from iter log ──
+  # ─── Count subagent dispatches + orphans via dispatch log ──
   SUBAGENT_COUNT=0
-  if [ -f "$ITER_LOG" ] && [ -s "$ITER_LOG" ]; then
-    SUBAGENT_COUNT=$(grep -c '^\[Task\]' "$ITER_LOG" 2>/dev/null || echo 0)
+  if [ -f "$DISPATCH_LOG" ] && [ -s "$DISPATCH_LOG" ]; then
+    eval "$(jq -rs '
+      ([.[] | select(.event == "dispatch")] | length) as $d |
+      ([.[] | select(.event == "dispatch") | .index]) as $di |
+      ([.[] | select(.event == "stop") | .index]) as $si |
+      ($di | map(select(. as $i | $si | index($i))) | length) as $c |
+      "SUBAGENT_COUNT=\($d) SUBAGENT_COMPLETED=\($c)"
+    ' "$DISPATCH_LOG" 2>/dev/null || echo "SUBAGENT_COUNT=0 SUBAGENT_COMPLETED=0")"
+    SUBAGENT_ORPHANED=$((SUBAGENT_COUNT - SUBAGENT_COMPLETED))
     if [ "$SUBAGENT_COUNT" -gt 0 ]; then
-      log "${GREEN}Subagents: $SUBAGENT_COUNT dispatched${NC}"
+      if [ "$SUBAGENT_ORPHANED" -gt 0 ]; then
+        log "${YELLOW}Subagents: $SUBAGENT_COMPLETED/$SUBAGENT_COUNT completed ($SUBAGENT_ORPHANED orphaned)${NC}"
+      else
+        log "${GREEN}Subagents: $SUBAGENT_COUNT/$SUBAGENT_COUNT completed${NC}"
+      fi
     fi
   fi
 
