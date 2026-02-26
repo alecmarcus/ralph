@@ -1013,11 +1013,11 @@ if $USE_TMUX; then
     echo -e "  ${BOLD}${CYAN}Loom ∞${NC}"
     echo -e "  ${DIM}PID${NC} ${BOLD}…${NC}  ${DIM}|${NC}  ${DIM}Mode${NC} ${BOLD}$MODE_LABEL${NC}  ${DIM}|${NC}  ${DIM}Iter${NC} ${BOLD}$MAX_ITERATIONS${NC}  ${DIM}|${NC}  ${DIM}Timeout${NC} ${BOLD}${TIMEOUT}s${NC}"
     echo -e "  ${DIM}Dir${NC}   $PROJECT_DIR"
-    [ -n "$PRD_PATH" ] && echo -e "  ${DIM}PRD${NC}   $PRD_PATH"
-    [ -n "$DIRECTIVE_FILE" ] && echo -e "  ${DIM}Src${NC}   $DIRECTIVE_FILE"
+    [ -n "$PRD_PATH" ] && echo -e "  ${DIM}PRD${NC}   ${PRD_PATH#"$PROJECT_DIR/"}"
+    [ -n "$DIRECTIVE_FILE" ] && echo -e "  ${DIM}Src${NC}   ${DIRECTIVE_FILE#"$PROJECT_DIR/"}"
     [ "${USE_WORKTREE:-}" = "yes" ] && [ "${WORKTREE_DIR:-}" != "$PROJECT_DIR" ] && echo -e "  ${DIM}Tree${NC}  $WORKTREE_DIR"
     [ -n "${LOOM_CAPABILITIES:-}" ] && echo -e "  ${DIM}MCPs${NC}  ${GREEN}$LOOM_CAPABILITIES${NC}"
-    echo -e "  ${DIM}Stop${NC}  ${CYAN}touch $LOOM_DIR/.stop${NC}"
+    echo -e "  ${DIM}Stop${NC}  ${CYAN}touch .loom/.stop${NC}"
   } > "$LOOM_DIR/.header"
 
   # Generate header pane script (reads .header + .iter_state, computes elapsed timer)
@@ -1025,7 +1025,7 @@ if $USE_TMUX; then
 #!/bin/sh
 LOOM_DIR="$1"
 while true; do
-  # Compose output first, then overwrite in place (no clear → no flash)
+  # Compose full output, then clear+draw in one atomic printf (no flash, no wrap artifacts)
   buf=$(cat "$LOOM_DIR/.header" 2>/dev/null || printf '  Starting…\n')
   if [ -f "$LOOM_DIR/.iter_state" ]; then
     read -r iter start < "$LOOM_DIR/.iter_state"
@@ -1039,7 +1039,7 @@ $(printf '  \033[2mIter\033[0m  \033[1m#%s\033[0m  \033[2m|\033[0m  \033[2m%dm %
     buf="${buf}
 $(printf '  \033[2mIter\033[0m  \033[2mwaiting…\033[0m')"
   fi
-  printf '\033[H%s\033[J' "$buf"
+  printf '\033[2J\033[H%s' "$buf"
   sleep 1
 done
 HEADEREOF
@@ -1099,11 +1099,11 @@ if [ "${LOOM_TMUX_CHILD:-}" = "1" ]; then
     echo -e "  ${BOLD}${CYAN}Loom ∞${NC}"
     echo -e "  ${DIM}PID${NC} ${BOLD}$$${NC}  ${DIM}|${NC}  ${DIM}Mode${NC} ${BOLD}$MODE_LABEL${NC}  ${DIM}|${NC}  ${DIM}Iter${NC} ${BOLD}$MAX_ITERATIONS${NC}  ${DIM}|${NC}  ${DIM}Timeout${NC} ${BOLD}${TIMEOUT}s${NC}"
     echo -e "  ${DIM}Dir${NC}   $PROJECT_DIR"
-    [ -n "$PRD_PATH" ] && echo -e "  ${DIM}PRD${NC}   $PRD_PATH"
-    [ -n "$DIRECTIVE_FILE" ] && echo -e "  ${DIM}Src${NC}   $DIRECTIVE_FILE"
+    [ -n "$PRD_PATH" ] && echo -e "  ${DIM}PRD${NC}   ${PRD_PATH#"$PROJECT_DIR/"}"
+    [ -n "$DIRECTIVE_FILE" ] && echo -e "  ${DIM}Src${NC}   ${DIRECTIVE_FILE#"$PROJECT_DIR/"}"
     [ "${USE_WORKTREE:-}" = "yes" ] && [ "${WORKTREE_DIR:-}" != "$PROJECT_DIR" ] && echo -e "  ${DIM}Tree${NC}  $WORKTREE_DIR"
     [ -n "${LOOM_CAPABILITIES:-}" ] && echo -e "  ${DIM}MCPs${NC}  ${GREEN}$LOOM_CAPABILITIES${NC}"
-    echo -e "  ${DIM}Stop${NC}  ${CYAN}touch $LOOM_DIR/.stop${NC}"
+    echo -e "  ${DIM}Stop${NC}  ${CYAN}touch .loom/.stop${NC}"
   } > "$LOOM_DIR/.header"
 else
   echo ""
