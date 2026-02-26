@@ -1412,6 +1412,16 @@ PREVIEWEOF
     ) && log "${DIM}Committed status.md checkpoint${NC}" || true
   fi
 
+  # ─── Clean up Claude Code temp task output ──
+  # Subagent task output files accumulate in /private/tmp and can fill
+  # the disk across iterations. Delete stale output files (>30min old)
+  # after each iteration — active sessions keep their files fresh.
+  CLAUDE_TEMP="/private/tmp/claude-$(id -u)"
+  if [ -d "$CLAUDE_TEMP" ]; then
+    find "$CLAUDE_TEMP" -path "*/tasks/*.output" -mmin +30 -delete 2>/dev/null || true
+    find "$CLAUDE_TEMP" -type d -name "tasks" -empty -delete 2>/dev/null || true
+  fi
+
   # ─── Preview: one iteration only, no cooldown ──
   if $PREVIEW; then
     log "${GREEN}Preview analysis complete.${NC}"
