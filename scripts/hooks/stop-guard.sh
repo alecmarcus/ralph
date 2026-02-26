@@ -44,9 +44,13 @@ MSG
 fi
 
 # ─── Nudge: docs and memory ──────────────────────────────────────
-# Always nudge. Advisory (block + continue), not a hard gate.
+# Advisory only — stderr feedback, does not block the stop.
+# The agent should have already done docs (4d) and memory (4e) before reaching here.
 
-jq -n '{
-  decision: "block",
-  reason: "Before finishing, check if this iteration warrants updates to:\n\nDocumentation:\n  - Root .docs/ and CLAUDE.md for project-wide knowledge (ADRs, specs, lessons, architecture)\n  - Feature-scoped .docs/ and CLAUDE.md (e.g. src/auth/.docs/) for feature-specific design notes, API decisions, and internal conventions\n  Create feature-scoped .docs/ directories when a feature area has design context worth preserving close to the code.\n\nMemory:\n  - If you discovered patterns, gotchas, or architectural decisions worth preserving, store them using available memory storage or tools so future iterations can benefit."
-}'
+cat >&2 <<'MSG'
+Reminder: if you haven't already, check if this iteration warrants updates to:
+  - Root .docs/ and CLAUDE.md for project-wide knowledge
+  - Feature-scoped .docs/ and CLAUDE.md for feature-specific context
+  - Memory (Vestige) for patterns, decisions, and gotchas
+MSG
+exit 0

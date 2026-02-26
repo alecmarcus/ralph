@@ -1012,6 +1012,7 @@ if $USE_TMUX; then
     echo -e "  ${BOLD}${CYAN}Loom ∞${NC}"
     echo -e "  ${DIM}PID${NC} ${BOLD}…${NC}  ${DIM}|${NC}  ${DIM}Mode${NC} ${BOLD}$MODE_LABEL${NC}  ${DIM}|${NC}  ${DIM}Iter${NC} ${BOLD}$MAX_ITERATIONS${NC}  ${DIM}|${NC}  ${DIM}Timeout${NC} ${BOLD}${TIMEOUT}s${NC}"
     echo -e "  ${DIM}Dir${NC}   $PROJECT_DIR"
+    [ -n "$PRD_PATH" ] && echo -e "  ${DIM}PRD${NC}   $PRD_PATH"
     [ -n "$DIRECTIVE_FILE" ] && echo -e "  ${DIM}Src${NC}   $DIRECTIVE_FILE"
     [ "${USE_WORKTREE:-}" = "yes" ] && [ "${WORKTREE_DIR:-}" != "$PROJECT_DIR" ] && echo -e "  ${DIM}Tree${NC}  $WORKTREE_DIR"
     [ -n "${LOOM_CAPABILITIES:-}" ] && echo -e "  ${DIM}MCPs${NC}  ${GREEN}$LOOM_CAPABILITIES${NC}"
@@ -1023,26 +1024,34 @@ if $USE_TMUX; then
 #!/bin/sh
 LOOM_DIR="$1"
 while true; do
-  printf '\033[H\033[J'
-  cat "$LOOM_DIR/.header" 2>/dev/null || printf '  Starting…\n'
+  # Compose output first, then overwrite in place (no clear → no flash)
+  buf=$(cat "$LOOM_DIR/.header" 2>/dev/null || printf '  Starting…\n')
   if [ -f "$LOOM_DIR/.iter_state" ]; then
     read -r iter start < "$LOOM_DIR/.iter_state"
     now=$(date +%s)
     elapsed=$((now - start))
     mins=$((elapsed / 60))
     secs=$((elapsed % 60))
-    printf '  \033[2mIter\033[0m  \033[1m#%s\033[0m  \033[2m|\033[0m  \033[2m%dm %02ds\033[0m\n' "$iter" "$mins" "$secs"
+    buf="${buf}
+$(printf '  \033[2mIter\033[0m  \033[1m#%s\033[0m  \033[2m|\033[0m  \033[2m%dm %02ds\033[0m' "$iter" "$mins" "$secs")"
   else
-    printf '  \033[2mIter\033[0m  \033[2mwaiting…\033[0m\n'
+    buf="${buf}
+$(printf '  \033[2mIter\033[0m  \033[2mwaiting…\033[0m')"
   fi
+  printf '\033[H%s\033[J\n' "$buf"
   sleep 1
 done
 HEADEREOF
 
+  # Pre-create log dir/files so bottom panes don't die on missing paths
+  mkdir -p "$LOOM_DIR/logs"
+  touch "$LOOM_DIR/logs/master.log"
+  [ -f "$LOOM_DIR/status.md" ] || echo "# Loom Status" > "$LOOM_DIR/status.md"
+
   # Main pane: the loom loop (LOOM_TMUX_CHILD tells the child to
   # write its banner to .header instead of stdout)
   tmux new-session -d -s "$TMUX_SESSION" -x "$TERM_COLS" -y "$TERM_LINES" \
-    "LOOM_TMUX_CHILD=1 exec $0 $FORWARD_FLAGS"
+    "CLAUDE_PROJECT_DIR=$(printf '%q' "$PROJECT_DIR") LOOM_TMUX_CHILD=1 exec $0 $FORWARD_FLAGS"
 
   # Top: fixed header pane (always visible, sized to content, 1s refresh for timer)
   tmux split-window -v -b -t "$TMUX_SESSION:0.0" -l "$HEADER_HEIGHT" \
@@ -1089,6 +1098,7 @@ if [ "${LOOM_TMUX_CHILD:-}" = "1" ]; then
     echo -e "  ${BOLD}${CYAN}Loom ∞${NC}"
     echo -e "  ${DIM}PID${NC} ${BOLD}$$${NC}  ${DIM}|${NC}  ${DIM}Mode${NC} ${BOLD}$MODE_LABEL${NC}  ${DIM}|${NC}  ${DIM}Iter${NC} ${BOLD}$MAX_ITERATIONS${NC}  ${DIM}|${NC}  ${DIM}Timeout${NC} ${BOLD}${TIMEOUT}s${NC}"
     echo -e "  ${DIM}Dir${NC}   $PROJECT_DIR"
+    [ -n "$PRD_PATH" ] && echo -e "  ${DIM}PRD${NC}   $PRD_PATH"
     [ -n "$DIRECTIVE_FILE" ] && echo -e "  ${DIM}Src${NC}   $DIRECTIVE_FILE"
     [ "${USE_WORKTREE:-}" = "yes" ] && [ "${WORKTREE_DIR:-}" != "$PROJECT_DIR" ] && echo -e "  ${DIM}Tree${NC}  $WORKTREE_DIR"
     [ -n "${LOOM_CAPABILITIES:-}" ] && echo -e "  ${DIM}MCPs${NC}  ${GREEN}$LOOM_CAPABILITIES${NC}"
@@ -1101,6 +1111,9 @@ else
   echo -e "  ${DIM}PID${NC}   ${BOLD}$$${NC}"
   echo -e "  ${DIM}Mode${NC}  ${BOLD}$MODE_LABEL${NC}  ${DIM}|${NC}  ${DIM}Iter${NC} ${BOLD}$MAX_ITERATIONS${NC}  ${DIM}|${NC}  ${DIM}Timeout${NC} ${BOLD}${TIMEOUT}s${NC}"
   echo -e "  ${DIM}Dir${NC}   $PROJECT_DIR"
+  if [ -n "$PRD_PATH" ]; then
+    echo -e "  ${DIM}PRD${NC}   $PRD_PATH"
+  fi
   if [ -n "$DIRECTIVE_FILE" ]; then
     echo -e "  ${DIM}Src${NC}   $DIRECTIVE_FILE"
   fi
@@ -1322,8 +1335,8 @@ PREVIEWEOF
   RESULT_SIGNAL=$(parse_result_signal "$ITER_LOG")
 
   # Fallback: if agent didn't emit a signal, infer from status.md.
-  # The status-kill hook hard-kills the agent after status.md is written,
-  # so exit code is typically non-zero even on success.
+  # The stop-guard hook allows exit once status.md is written, and
+  # the status-kill hook (PostToolUse on Write) nudges the agent to stop.
   if [ "$RESULT_SIGNAL" = "UNKNOWN" ]; then
     if [ -f "$LOOM_DIR/status.md" ] && [ "$LOOM_DIR/status.md" -nt "$LOOM_DIR/.iteration_marker" ]; then
       if grep -qiE 'LOOM_RESULT:DONE|no (actionable |remaining )?stories remain' "$LOOM_DIR/status.md" 2>/dev/null; then
@@ -1383,6 +1396,16 @@ PREVIEWEOF
       # Success — reset counter
       CONSECUTIVE_FAILURES=0
     fi
+  fi
+
+  # ─── Commit status.md as iteration checkpoint ──
+  if [ -f "$LOOM_DIR/status.md" ] && [ "$LOOM_DIR/status.md" -nt "$LOOM_DIR/.iteration_marker" ]; then
+    (
+      cd "$PROJECT_DIR"
+      git add "$LOOM_DIR/status.md" 2>/dev/null
+      git commit --no-gpg-sign -m "chore(loom): iteration $ITERATION checkpoint [$RESULT_SIGNAL]" \
+        -m "iteration: $ITERATION, status: $ITER_STATUS" 2>/dev/null
+    ) && log "${DIM}Committed status.md checkpoint${NC}" || true
   fi
 
   # ─── Preview: one iteration only, no cooldown ──

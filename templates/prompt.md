@@ -19,12 +19,30 @@ Replace `<project-name>` with the name of the current project directory.
 
 Review any returned patterns, decisions, or warnings. These are learnings from previous iterations — follow them.
 
-### 1b — Read Status
+### 1b — Check for Uncommitted Changes
 
-Read `.loom/status.md`.
+```bash
+git status --porcelain
+```
 
-- If it contains **failing tests**, those are your **top priority**. Treat each failure as a priority item that takes precedence over new PRD stories.
-- If it contains **uncommitted changes** from a previous failed iteration, assess whether they are salvageable or should be reverted.
+**If there are uncommitted changes**, enter **repair mode**:
+
+1. Read `.loom/status.md` for context on the previous iteration.
+2. Read the relevant stories from the PRD using `jq` — not to select new work, but to understand what the uncommitted changes relate to.
+3. Read the diff: `git diff`
+4. Run the test suite to assess the current state.
+5. Based on the status, stories, diff, and test results, decide for each set of changes whether to:
+   - **Commit** — tests pass, work is complete or meaningfully progressed
+   - **Fix then commit** — tests fail but the work is salvageable, fix and commit
+   - **Revert** — changes are broken or conflicting beyond quick repair (`git checkout <files>`)
+6. Update the PRD for any stories that were completed or progressed.
+7. **Do NOT select new stories.** Skip Steps 2–3 entirely. Proceed directly to Step 4f (emit result signal) and Step 4g (write status.md).
+
+The next iteration will start with a clean tree and pick up new work.
+
+**If working tree is clean**, read `.loom/status.md`:
+
+- If it contains **failing tests**, fix them before taking new stories.
 - If status.md is empty or reports no failures, proceed to Step 2.
 
 ---
@@ -102,7 +120,16 @@ Update `{{PRD_FILE}}`:
 
 Use `jq` or targeted edits — do not rewrite the entire file.
 
-### 4c — Commit (only if tests pass)
+### 4c — Update Remote Sources
+
+If there are remote sources, such as linear or github tickets:
+- Use relevant tools to update the status accordingly
+- Reference the specific commit hash and story-ID that pertain to the ticket and its update
+- If updating to an intermediate status, explain in detail what progress has been made so far and what progress remains, including references to sources and commit hashes
+- If resolving, explain how it was resolved/fixed
+- If closing/cancelling without resolution, justify the closure and explain why in great detail, including references to sources that you used to reach your decision
+
+### 4d — Commit (only if tests pass)
 
 **Only commit if the test suite is green.** If tests are still failing after fix attempts, skip this step — leave changes uncommitted. The next iteration will pick them up.
 
@@ -114,7 +141,7 @@ When committing, follow these rules:
 - **Do not bundle unrelated changes.** A feature and its tests can share a commit, but two separate features must not.
 - **Stage specific files by name.** Never use `git add -A` or `git add .`.
 
-### 4d — Update Documentation
+### 4e — Update Documentation
 
 Check if the work done this iteration warrants documentation updates:
 
@@ -123,7 +150,7 @@ Check if the work done this iteration warrants documentation updates:
 
 Keep docs concise and practical — focus on what a future agent (or developer) working in this area needs to know that isn't obvious from the code itself. Skip this step if the work was trivial (e.g. fixing a typo, updating a config value).
 
-### 4e — Store Learnings in Memory
+### 4f — Store Learnings in Memory
 
 Use Vestige to store any operational learnings from this iteration:
 
@@ -133,7 +160,7 @@ Use Vestige to store any operational learnings from this iteration:
 
 Only store things that would be **useful to a future iteration with no memory of this one**. Don't store routine progress — that's what status.md is for.
 
-### 4f — Emit Result Signal (MANDATORY)
+### 4g — Emit Result Signal (MANDATORY)
 
 **You MUST print one of these exact lines as visible output before writing status.md.** The loop controller parses your stdout for this signal. If you skip it, the iteration is recorded as UNKNOWN.
 
@@ -151,7 +178,7 @@ LOOM_RESULT:DONE
 - `LOOM_RESULT:FAILED` — nothing completed successfully this iteration
 - `LOOM_RESULT:DONE` — no actionable stories remain in the PRD and no tests are failing; the loop should stop
 
-### 4g — Update Status (LAST STEP — triggers loop restart)
+### 4h — Update Status (LAST STEP — triggers loop restart)
 
 **This must be the final file you write.** Writing to `status.md` signals the loop controller that the iteration is complete. You will be terminated immediately after this write. Ensure all commits and memory storage are done before this step.
 
@@ -170,7 +197,7 @@ Overwrite `.loom/status.md` with a fresh report containing:
 
 ## Rules
 
-- **Closed stories do not exist.** Never read, reference, or act on stories with any status other than `"pending"` or `"in_progress"`.
+- **Closed stories are not to be revisited.** Never read or act on stories with any status other than `"pending"` or `"in_progress"`. You may only reference them as sources or prior work.
 - **Source backlinks are the source of truth.** When a story has a `sources` array, the referenced files and sections are the authoritative specification. If the story's fields conflict with or are less detailed than the source documents, follow the source. Subagents should read the referenced source file when available. As such, stories and sources should be kept in sync.
 - **One story per subagent.** No exceptions.
 - **Search before assuming.** Always search the codebase before concluding something is missing or needs to be built.
