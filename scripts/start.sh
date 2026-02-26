@@ -1139,9 +1139,11 @@ HEADEREOF
     "run-shell 'tmux resize-pane -t 0.0 -y $HEADER_HEIGHT 2>/dev/null; tmux resize-pane -t 0.2 -y 10 2>/dev/null; tmux resize-pane -t 0.3 -y 10 2>/dev/null; true'"
 
   echo -e "${GREEN}Loom launched in tmux session '${TMUX_SESSION}'${NC}"
+  echo -e "  Session: ${BOLD}$TMUX_SESSION${NC}"
+  echo -e "  Loom dir: ${BOLD}$LOOM_DIR${NC}"
   echo -e "  Attach:  ${BOLD}tmux attach -t $TMUX_SESSION${NC}"
   echo -e "  Kill:    ${BOLD}tmux kill-session -t $TMUX_SESSION${NC}"
-  echo -e "  Stop:    ${BOLD}touch .loom/.stop${NC} (finishes current iteration)"
+  echo -e "  Stop:    ${BOLD}touch $LOOM_DIR/.stop${NC} (finishes current iteration)"
 
   # The tmux child owns all runtime state now — disable cleanup so the
   # parent doesn't delete files (.directive, .piped_directive) before

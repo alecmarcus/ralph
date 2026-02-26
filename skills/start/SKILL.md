@@ -137,12 +137,16 @@ Then use `--prompt .loom/.directive` in `$FLAGS`.
 LOOM="$(cat .loom/.plugin_root)" && unset CLAUDECODE && "$LOOM/scripts/start.sh" $FLAGS
 ```
 
-The script launches the tmux session, prints session info, and exits. The output includes the actual session name (e.g., `loom-myapp-fix-auth-bug`). Report it back:
+The script launches the tmux session, prints session info, and exits. The output includes:
+- **Session**: the tmux session name (e.g., `loom-myapp-fix-auth-bug`)
+- **Loom dir**: the `.loom/` directory path (may be in a worktree, e.g., `/Users/.../.claude-worktrees/.../.loom`)
+
+Parse both values from the output. Report the session name and control commands:
   - Attach to monitor: `tmux attach -t <session-name>`
   - Kill the loop: `tmux kill-session -t <session-name>`
-  - Stop gracefully: `touch .loom/.stop`
+  - Stop gracefully: `touch <loom-dir>/.stop`
 
-Do **not** fabricate a session name. Only report what the script actually outputs.
+Do **not** fabricate a session name or loom dir. Only use what the script actually outputs.
 
 ## Iteration watcher relay
 
@@ -150,9 +154,9 @@ After launching, start monitoring via the iteration watcher relay pattern. Each 
 
 **Start the relay** immediately after the launch notification arrives:
 ```bash
-LOOM="$(cat .loom/.plugin_root)" && "$LOOM/scripts/iteration-watcher.sh" "<session-name>" .loom
+LOOM="$(cat .loom/.plugin_root)" && "$LOOM/scripts/iteration-watcher.sh" "<session-name>" "<loom-dir>"
 ```
-Run this with `run_in_background: true`. The session name must match what `start.sh` output.
+Run this with `run_in_background: true`. Both `<session-name>` and `<loom-dir>` must match what `start.sh` output. The loom dir is especially important with worktrees — it points to the worktree's `.loom/`, not the project root's.
 
 **When the watcher notification arrives**, it will contain one of:
 - **Iteration line(s)** (e.g., `2026-02-26 14:30:00 | #3 | prd | SUCCESS | 120s | ...`): Report the result to the user briefly, then **immediately launch another watcher** with the same command to continue monitoring.
