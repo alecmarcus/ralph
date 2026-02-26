@@ -124,10 +124,6 @@ Add `--pr false` to flags.
 
 ### 4. Launch
 
-```bash
-LOOM="$(cat .loom/.plugin_root)" && unset CLAUDECODE && "$LOOM/scripts/start.sh" $FLAGS
-```
-
 When `$FLAGS` includes `--prompt` with user text (standalone or from semantic separation), write the text to a file first to avoid shell quoting issues:
 
 ```bash
@@ -136,9 +132,22 @@ printf '%s' "$TEXT" > .loom/.directive
 
 Then use `--prompt .loom/.directive` in `$FLAGS`.
 
+**Step 1 — Foreground launch** (returns quickly with session name):
+```bash
+LOOM="$(cat .loom/.plugin_root)" && unset CLAUDECODE && "$LOOM/scripts/start.sh" $FLAGS
+```
+
+**Step 2 — Background watcher** (blocks until loop ends, delivers notification):
+```bash
+# IMPORTANT: run this with run_in_background: true
+LOOM="$(cat .loom/.plugin_root)" && unset CLAUDECODE && "$LOOM/scripts/start.sh" $FLAGS --wait
+```
+
+The `--wait` flag makes the script block until the tmux session ends, then report the final master log. When it completes, the parent Claude session gets a notification. This is how the user knows the loop finished without manually checking tmux.
+
 ## After launching
 
-Read the script's output to determine what happened:
+Read the **foreground** script's output to determine what happened:
 
 - **Tmux mode** (script was invoked from a terminal): the output includes the actual session name (e.g., `loom-myapp-fix-auth-bug`). Report it back:
   - Attach to monitor: `tmux attach -t <session-name>`
@@ -146,3 +155,5 @@ Read the script's output to determine what happened:
 - **Inline mode** (script was invoked from inside Claude Code or tmux): the loop runs in the foreground. The output includes PID and control commands — report those instead.
 
 Do **not** fabricate a session name. Only report what the script actually outputs.
+
+The background watcher will automatically report when the loop finishes — you don't need to poll or check on it.

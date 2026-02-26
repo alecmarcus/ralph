@@ -44,6 +44,7 @@ WORKTREE_DIR=""
 WORKTREE_BRANCH=""
 RESUME_WORKTREE=""
 CREATE_PR="yes"         # "yes" = push + PR after loop, "no" = skip
+WAIT_MODE=false         # --wait: block until tmux session ends (for background watcher)
 
 # ─── Colors (terminal only — stripped from log file) ─────────────
 RED='\033[0;31m'
@@ -273,6 +274,10 @@ while [[ $# -gt 0 ]]; do
       [[ $# -ge 2 ]] || die "$1 requires a value"
       TMUX_SESSION="$2"
       shift 2
+      ;;
+    --wait)
+      WAIT_MODE=true
+      shift 1
       ;;
     --resume)
       if [[ $# -ge 2 ]] && [[ "$2" != --* ]]; then
@@ -1088,6 +1093,18 @@ HEADEREOF
   echo -e "  Attach:  ${BOLD}tmux attach -t $TMUX_SESSION${NC}"
   echo -e "  Kill:    ${BOLD}tmux kill-session -t $TMUX_SESSION${NC}"
   echo -e "  Stop:    ${BOLD}touch .loom/.stop${NC} (finishes current iteration)"
+
+  # Wait mode: block until the tmux session ends, then report status.
+  # Used by the start skill as a background Bash task so the parent
+  # Claude session gets notified when the loop finishes.
+  if $WAIT_MODE; then
+    trap - EXIT  # Child owns cleanup, not the watcher
+    while tmux has-session -t "$TMUX_SESSION" 2>/dev/null; do sleep 5; done
+    echo ""
+    echo "── Loom session '$TMUX_SESSION' ended ──"
+    tail -20 "$LOOM_DIR/logs/master.log" 2>/dev/null
+    exit 0
+  fi
 
   # Auto-attach when running from an interactive terminal
   if [ -t 0 ]; then
