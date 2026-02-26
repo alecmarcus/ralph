@@ -1321,44 +1321,17 @@ PREVIEWEOF
     CLAUDE_PREFIX="$TIMEOUT_CMD --foreground $TIMEOUT"
   fi
 
-  SUBAGENT_LOG="$LOOM_DIR/logs/$(date '+%Y%m%d-%H%M%S')-${ITER_LABEL}-subagents.jsonl"
-
   set +e
-  # Pipeline: claude | tee (sidecar) | jq (text extraction) | tee (log capture)
+  # Pipeline: claude | jq (text+tool names) | tee (log capture)
   # PIPESTATUS[0] = claude (or timeout wrapper)
-  # PIPESTATUS[1] = tee (subagent sidecar fork)
-  # PIPESTATUS[2] = jq text_delta extraction
-  # PIPESTATUS[3] = tee (log capture)
+  # PIPESTATUS[1] = jq text/tool extraction
+  # PIPESTATUS[2] = tee (log capture)
   $CLAUDE_PREFIX claude -p \
     --dangerously-skip-permissions \
     --verbose \
     --output-format stream-json \
     --include-partial-messages \
     "$PROMPT" 2>>"$LOG_FILE" | \
-    tee >(jq --unbuffered -c '
-      select(.type == "stream_event") |
-      if (
-        .event.type? == "content_block_start" and
-        .event.content_block.type? == "tool_use" and
-        .event.content_block.name? == "Task"
-      ) then
-        {
-          ts: now | strftime("%Y-%m-%d %H:%M:%S"),
-          event: "dispatch",
-          tool_use_id: .event.content_block.id,
-          index: .event.index
-        }
-      elif (
-        .event.type? == "content_block_stop"
-      ) then
-        {
-          ts: now | strftime("%Y-%m-%d %H:%M:%S"),
-          event: "block_stop",
-          index: .event.index
-        }
-      else empty
-      end
-    ' >> "$SUBAGENT_LOG" 2>/dev/null || true) | \
     jq --unbuffered -rj 'select(.type == "stream_event") |
       if .event.delta.type? == "text_delta" then .event.delta.text
       elif .event.type? == "content_block_start" and .event.content_block.type? == "text" and (.event.index // 0) > 0 then "\n"
@@ -1372,24 +1345,12 @@ PREVIEWEOF
   ITER_END=$(date +%s)
   ITER_DURATION=$((ITER_END - ITER_START))
 
-  # ─── Count subagent dispatches + completions ──
+  # ─── Count Task dispatches from iter log ──
   SUBAGENT_COUNT=0
-  SUBAGENT_COMPLETED=0
-  if [ -f "$SUBAGENT_LOG" ] && [ -s "$SUBAGENT_LOG" ]; then
-    eval "$(jq -rs '
-      ([.[] | select(.event == "dispatch")] | length) as $d |
-      ([.[] | select(.event == "dispatch") | .index]) as $di |
-      ([.[] | select(.event == "block_stop") | .index]) as $si |
-      ($di | map(select(. as $i | $si | index($i))) | length) as $c |
-      "SUBAGENT_COUNT=\($d) SUBAGENT_COMPLETED=\($c)"
-    ' "$SUBAGENT_LOG" 2>/dev/null || echo "SUBAGENT_COUNT=0 SUBAGENT_COMPLETED=0")"
-    SUBAGENT_ORPHANED=$((SUBAGENT_COUNT - SUBAGENT_COMPLETED))
+  if [ -f "$ITER_LOG" ] && [ -s "$ITER_LOG" ]; then
+    SUBAGENT_COUNT=$(grep -c '^\[Task\]' "$ITER_LOG" 2>/dev/null || echo 0)
     if [ "$SUBAGENT_COUNT" -gt 0 ]; then
-      if [ "$SUBAGENT_ORPHANED" -gt 0 ]; then
-        log "${YELLOW}Subagents: $SUBAGENT_COMPLETED/$SUBAGENT_COUNT completed ($SUBAGENT_ORPHANED did not finish)${NC}"
-      else
-        log "${GREEN}Subagents: $SUBAGENT_COUNT/$SUBAGENT_COUNT completed${NC}"
-      fi
+      log "${GREEN}Subagents: $SUBAGENT_COUNT dispatched${NC}"
     fi
   fi
 
@@ -1466,10 +1427,11 @@ PREVIEWEOF
   if [ -f "$LOOM_DIR/status.md" ] && [ "$LOOM_DIR/status.md" -nt "$LOOM_DIR/.iteration_marker" ]; then
     (
       cd "$PROJECT_DIR"
-      git add "$LOOM_DIR/status.md" 2>/dev/null
+      git add "$LOOM_DIR/status.md" 2>>"$LOG_FILE"
       git commit --no-gpg-sign -m "chore(loom): iteration $ITERATION checkpoint [$RESULT_SIGNAL]" \
-        -m "iteration: $ITERATION, status: $ITER_STATUS" 2>/dev/null
-    ) && log "${DIM}Committed status.md checkpoint${NC}" || true
+        -m "iteration: $ITERATION, status: $ITER_STATUS" 2>>"$LOG_FILE"
+    ) && log "${DIM}Committed status.md checkpoint${NC}" \
+      || log "${YELLOW}status.md checkpoint commit failed (see above)${NC}"
   fi
 
   # ─── Clean up Claude Code temp task output ──
@@ -1489,6 +1451,7 @@ PREVIEWEOF
   fi
 
 done
+log "${DIM}Loop exited after $ITERATION iteration(s)${NC}"
 
 if ! $PREVIEW && [ "$ITERATION" -ge "$MAX_ITERATIONS" ]; then
   log "${YELLOW}${BOLD}Loom completed $MAX_ITERATIONS iterations. Halting.${NC}"
