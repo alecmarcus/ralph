@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # ─── Loom Status: Run Summary ──────────────────────────────────
-# Parses history.log and status.md to display a summary of the
+# Parses iterations.log and status.md to display a summary of the
 # current or most recent Loom run.
 # Uses CWD-relative .loom/ (per-project state).
 # ─────────────────────────────────────────────────────────────────
@@ -10,7 +10,7 @@ set -euo pipefail
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(pwd)}"
 LOOM_DIR="$PROJECT_DIR/.loom"
 PROJECT_NAME="$(basename "$PROJECT_DIR")"
-MASTER_LOG="$LOOM_DIR/logs/history.log"
+MASTER_LOG="$LOOM_DIR/logs/iterations.log"
 
 # Colors
 RED='\033[0;31m'
@@ -39,7 +39,7 @@ fi
 
 # ─── Master log summary ────────────────────────────────────────
 if [ ! -f "$MASTER_LOG" ]; then
-  echo -e "\n  ${DIM}No history.log found. Loom hasn't run yet.${NC}"
+  echo -e "\n  ${DIM}No iterations.log found. Loom hasn't run yet.${NC}"
   exit 0
 fi
 

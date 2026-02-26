@@ -353,7 +353,7 @@ if $WAIT_MODE; then
   while tmux has-session -t "$TMUX_SESSION" 2>/dev/null; do sleep 5; done
   echo ""
   echo "── Loom session '$TMUX_SESSION' ended ──"
-  tail -20 "$LOOM_DIR/logs/history.log" 2>/dev/null
+  tail -20 "$LOOM_DIR/logs/iterations.log" 2>/dev/null
   exit 0
 fi
 
@@ -761,7 +761,7 @@ Automated changes by Loom.
     PR_CREATED=true
     log "${GREEN}${BOLD}PR created:${NC} $pr_url"
     mkdir -p "$LOOM_DIR/logs"
-    echo "$(date '+%Y-%m-%d %H:%M:%S') | PR | $pr_url | $WORKTREE_BRANCH" >> "$LOOM_DIR/logs/history.log"
+    echo "$(date '+%Y-%m-%d %H:%M:%S') | PR | $pr_url | $WORKTREE_BRANCH" >> "$LOOM_DIR/logs/iterations.log"
   else
     log "${YELLOW}PR creation failed — branch pushed but PR not created${NC}"
   fi
@@ -785,7 +785,7 @@ separator() {
 }
 
 master_log() {
-  # Append a structured line to history.log
+  # Append a structured line to iterations.log
   # Format: timestamp | #iteration | label | status | duration | reason [| subagents:N]
   local iteration="$1" label="$2" status="$3" duration="$4" reason="$5" subagents="${6:-}"
   local ts
@@ -794,7 +794,7 @@ master_log() {
   mkdir -p "$log_dir"
   local line="$ts | #$iteration | $label | $status | ${duration}s | $reason"
   [ -n "$subagents" ] && line="$line | subagents:$subagents"
-  echo "$line" >> "$log_dir/history.log"
+  echo "$line" >> "$log_dir/iterations.log"
 }
 
 # ─── Timeout Detection ──────────────────────────────────────────
@@ -1100,7 +1100,7 @@ HEADEREOF
 
   # Pre-create log dir/files so bottom panes don't die on missing paths
   mkdir -p "$LOOM_DIR/logs"
-  touch "$LOOM_DIR/logs/history.log"
+  touch "$LOOM_DIR/logs/iterations.log"
   [ -f "$LOOM_DIR/status.md" ] || echo "# Loom Status" > "$LOOM_DIR/status.md"
 
   # Main pane: the loom loop (LOOM_TMUX_CHILD tells the child to
@@ -1118,7 +1118,7 @@ HEADEREOF
 
   # Bottom-right: log tail
   tmux split-window -h -t "$TMUX_SESSION:0.2" \
-    "exec tail -f \"$LOOM_DIR/logs/history.log\" 2>/dev/null || tail -f \"$LOG_FILE\""
+    "exec tail -f \"$LOOM_DIR/logs/iterations.log\" 2>/dev/null || tail -f \"$LOG_FILE\""
 
   # Pin pane sizes: header at top, bottom panes at 10 lines
   tmux resize-pane -t "$TMUX_SESSION:0.0" -y "$HEADER_HEIGHT" 2>/dev/null || true
@@ -1183,7 +1183,7 @@ else
   echo -e "  ${CYAN}Kill${NC}             kill -TERM -$$"
   echo -e "  ${CYAN}Tail log${NC}         tail -f $LOG_FILE"
   echo -e "  ${CYAN}Status${NC}           cat $LOOM_DIR/status.md"
-  echo -e "  ${CYAN}Master log${NC}       tail -f $LOOM_DIR/logs/history.log"
+  echo -e "  ${CYAN}Master log${NC}       tail -f $LOOM_DIR/logs/iterations.log"
   echo ""
 fi
 

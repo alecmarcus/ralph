@@ -12,7 +12,7 @@ allowed-tools: Bash, Read, Write
 - Branch: !`git branch --show-current 2>/dev/null || echo "(detached)"`
 - Worktrees: !`git worktree list 2>/dev/null | grep -c "\.claude-worktrees" || echo "0"` active
 - Loom sessions: !`tmux list-sessions 2>/dev/null | grep -c "^loom-" || echo "0"` running
-- Last log: !`tail -3 .loom/logs/history.log 2>/dev/null || echo "(no logs)"`
+- Last log: !`tail -3 .loom/logs/iterations.log 2>/dev/null || echo "(no logs)"`
 
 ## start.sh
 
@@ -109,7 +109,7 @@ This handles the interactive disambiguation before handing off to the non-intera
 If **any** of these are true, add `--resume` to the flags:
 
 - The current directory is inside a loom worktree or branch
-- `.loom/logs/history.log` has entries from the last few hours that relate to recent commits or current uncommitted changes
+- `.loom/logs/iterations.log` has entries from the last few hours that relate to recent commits or current uncommitted changes
 
 This applies regardless of whether other source flags are present. The script handles `--resume` combined with other flags.
 

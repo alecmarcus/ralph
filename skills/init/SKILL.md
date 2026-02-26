@@ -112,7 +112,7 @@ Loom runs Claude Code in a continuous loop: read tasks from a PRD, dispatch para
 .loom/               # Autonomous dev loop — dispatches parallel subagents from a PRD
 ├── prd.json         # Structured stories with gates (P0/P1/P2), deps, acceptance criteria
 ├── status.md        # Current iteration state (read at start, written at end of each cycle)
-└── logs/            # Per-iteration logs + history.log
+└── logs/            # Per-iteration logs + iterations.log
 ```
 
 ### Rules for success

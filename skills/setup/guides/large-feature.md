@@ -125,7 +125,7 @@ The tmux session has four panes:
 - **Top**: Session header (PID, mode, config, detected MCPs)
 - **Middle**: Live Claude Code output
 - **Bottom-left**: `status.md` (refreshes every 3s)
-- **Bottom-right**: `history.log` tail
+- **Bottom-right**: `iterations.log` tail
 
 ## Step 5: Let It Run
 
@@ -160,7 +160,7 @@ Check the status and logs:
 ```bash
 /loom:status
 cat .loom/status.md
-tail -50 .loom/logs/history.log
+tail -50 .loom/logs/iterations.log
 ```
 
 Common reasons for early stops:

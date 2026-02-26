@@ -280,7 +280,7 @@ Loom launches in a tmux session with four panes:
 | Top (fixed) | Session header — PID, mode, config (always visible) |
 | Middle | Live Claude Code output |
 | Bottom-left | `status.md` (refreshes every 3s) |
-| Bottom-right | `history.log` tail |
+| Bottom-right | `iterations.log` tail |
 
 ```bash
 tmux attach -t loom-<project>   # attach to the session
@@ -448,7 +448,7 @@ your-project/
 │   ├── status.md                  # Inter-iteration state (auto-managed)
 │   ├── .gitignore
 │   ├── .plugin_root               # Path to plugin (written by SessionStart hook)
-│   └── logs/                      # Per-iteration logs + history.log
+│   └── logs/                      # Per-iteration logs + iterations.log
 └── CLAUDE.md                      # Contains Loom rules section
 ```
 
