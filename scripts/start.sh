@@ -11,7 +11,7 @@ PLUGIN_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(pwd)}"
 LOOM_DIR="$PROJECT_DIR/.loom"
 PROJECT_NAME="$(basename "$PROJECT_DIR")"
-LOG_FILE="$LOOM_DIR/loom.log"
+LOG_FILE="$LOOM_DIR/history.log"
 TMUX_SESSION="loom-${PROJECT_NAME}"
 MAX_ITERATIONS=500
 # Default to tmux when running from a terminal (not inside Claude Code
@@ -914,7 +914,7 @@ if [ "$USE_WORKTREE" = "yes" ]; then
   # don't clobber each other. Source .loom/ keeps only checked-in files.
   SOURCE_LOOM_DIR="$LOOM_DIR"
   LOOM_DIR="$PROJECT_DIR/.loom"
-  LOG_FILE="$LOOM_DIR/loom.log"
+  LOG_FILE="$LOOM_DIR/history.log"
   PID_FILE="$LOOM_DIR/.pid"
   echo $$ > "$PID_FILE"
   # Relocate composed directive into the worktree so concurrent looms
