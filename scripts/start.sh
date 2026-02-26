@@ -997,6 +997,7 @@ if $USE_TMUX; then
   # Compute header height to match content exactly
   # Base: 1 (title) + 1 (PID/Mode) + 1 (Dir) + 1 (Stop) + 1 (Iter/timer) = 5
   HEADER_HEIGHT=5
+  [ -n "$PRD_PATH" ] && HEADER_HEIGHT=$((HEADER_HEIGHT + 1))
   [ -n "$DIRECTIVE_FILE" ] && HEADER_HEIGHT=$((HEADER_HEIGHT + 1))
   # Tree line only shown when different from Dir
   [ "$USE_WORKTREE" = "yes" ] && [ "$WORKTREE_DIR" != "$PROJECT_DIR" ] && HEADER_HEIGHT=$((HEADER_HEIGHT + 1))
@@ -1038,7 +1039,7 @@ $(printf '  \033[2mIter\033[0m  \033[1m#%s\033[0m  \033[2m|\033[0m  \033[2m%dm %
     buf="${buf}
 $(printf '  \033[2mIter\033[0m  \033[2mwaiting…\033[0m')"
   fi
-  printf '\033[H%s\033[J\n' "$buf"
+  printf '\033[H%s\033[J' "$buf"
   sleep 1
 done
 HEADEREOF
