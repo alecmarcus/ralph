@@ -3,7 +3,7 @@ name: start
 description: Start the Loom autonomous development loop. Launches a tmux session that continuously reads tasks from a PRD or directive, dispatches parallel subagents, runs tests, and commits passing code. Accepts a prompt, source flags, or no arguments for PRD mode.
 argument-hint: "[<prompt>] [prd <path>] [github|linear|slack|notion|sentry <query>] [resume <dir>] [wt|worktree <bool>] [pr <bool>]"
 disable-model-invocation: true
-allowed-tools: Bash, Read, Write, Task
+allowed-tools: Bash, Read, Write
 ---
 
 # /loom:start
@@ -132,39 +132,28 @@ printf '%s' "$TEXT" > .loom/.directive
 
 Then use `--prompt .loom/.directive` in `$FLAGS`.
 
-**Step 1 — Launch the loop** (returns quickly with session name):
+**Launch the loop** (run in background with `run_in_background: true`):
 ```bash
 LOOM="$(cat .loom/.plugin_root)" && unset CLAUDECODE && "$LOOM/scripts/start.sh" $FLAGS
 ```
 
-**Step 2 — Start the iteration watcher** (background Task, delivers per-iteration notifications):
-```bash
-# IMPORTANT: run this with the Task tool, run_in_background: true
-LOOM="$(cat .loom/.plugin_root)" && "$LOOM/scripts/iteration-watcher.sh" <SESSION_NAME> .loom
-```
-
-Replace `<SESSION_NAME>` with the actual session name from Step 1's output.
-
-The watcher polls `iterations.log` for new entries every 3 seconds. When a new iteration completes, it exits with the log line. When the tmux session dies, it exits with `LOOP_TERMINATED`.
+The script launches the tmux session and then stays alive as an iteration watcher, streaming per-iteration log lines to stdout. When the loop terminates, it prints `LOOP_TERMINATED` and exits. Since it runs as a background Bash command, you'll receive notifications as output arrives.
 
 ## After launching
 
-Read the **Step 1** output to determine what happened:
+The initial output (before the watcher takes over) tells you what happened:
 
-- **Tmux mode** (script was invoked from a terminal): the output includes the actual session name (e.g., `loom-myapp-fix-auth-bug`). Report it back:
+- **Tmux mode**: the output includes the actual session name (e.g., `loom-myapp-fix-auth-bug`). Report it back:
   - Attach to monitor: `tmux attach -t <session-name>`
   - Kill the loop: `tmux kill-session -t <session-name>`
-- **Inline mode** (script was invoked from inside Claude Code or tmux): the loop runs in the foreground. The output includes PID and control commands — report those instead.
+  - Stop gracefully: `touch .loom/.stop`
+- **Inline mode** (inside Claude Code or tmux): the loop runs in the foreground. Report PID and control commands from the output.
 
 Do **not** fabricate a session name. Only report what the script actually outputs.
 
 ## Handling watcher notifications
 
-When the iteration watcher Task completes, you will receive its output. Handle it as follows:
+The background Bash command will produce output as iterations complete. When you receive a notification:
 
-- **Iteration line** (e.g., `2026-02-26 14:30:00 | #3 | prd | SUCCESS | 120s | ...`): Report the result to the user briefly. Then immediately launch another watcher:
-  ```bash
-  # Task tool, run_in_background: true
-  LOOM="$(cat .loom/.plugin_root)" && "$LOOM/scripts/iteration-watcher.sh" <SESSION_NAME> .loom
-  ```
-- **`LOOP_TERMINATED`**: The loop has ended. Report the final status lines to the user. Do **not** launch another watcher.
+- **Iteration line** (e.g., `2026-02-26 14:30:00 | #3 | prd | SUCCESS | 120s | ...`): Report the result to the user briefly.
+- **`LOOP_TERMINATED`**: The loop has ended. Report final status to the user.

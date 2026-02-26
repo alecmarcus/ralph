@@ -1116,7 +1116,26 @@ HEADEREOF
   # parent doesn't delete files (.directive, .piped_directive) before
   # the async child reads them. The child handles its own cleanup.
   trap - EXIT
-  exit 0
+
+  # ─── Iteration Watcher (non-interactive parent) ─────────────────
+  # When not attached to a terminal (i.e. launched from Claude Code),
+  # the parent stays alive and streams iteration lines to stdout.
+  # This lets the calling skill get per-iteration notifications from
+  # a single background Bash command — no separate watcher needed.
+  LOGFILE="$LOOM_DIR/logs/iterations.log"
+  BASELINE=$(wc -l < "$LOGFILE" 2>/dev/null || echo 0)
+  while true; do
+    CURRENT=$(wc -l < "$LOGFILE" 2>/dev/null || echo 0)
+    if [ "$CURRENT" -gt "$BASELINE" ]; then
+      tail -n $((CURRENT - BASELINE)) "$LOGFILE"
+      BASELINE="$CURRENT"
+    fi
+    if ! tmux has-session -t "$TMUX_SESSION" 2>/dev/null; then
+      echo "LOOP_TERMINATED"
+      exit 0
+    fi
+    sleep 3
+  done
 fi
 
 # ─── Banner ──────────────────────────────────────────────────────
