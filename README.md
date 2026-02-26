@@ -287,6 +287,14 @@ tmux attach -t loom-<project>   # attach to the session
 /loom:status                     # view status summary
 ```
 
+### Notifications
+
+Loom provides two independent notification systems:
+
+**macOS notifications** — Each iteration sends a native notification via `osascript` with the iteration number, result signal, and duration. Automatic, no setup needed.
+
+**Claude Code relay** — The `/loom:start` skill monitors the loop via `iteration-watcher.sh`. After each iteration, the watcher reports back to Claude Code and exits; the skill relaunches it for the next iteration. This lets Claude Code track progress and report to you even when you're away from the computer (SSH, remote sessions, etc.).
+
 ### Stopping
 
 ```bash
@@ -418,6 +426,7 @@ loom/                              # Plugin root
 │   ├── loom-status.sh             # Status reporter
 │   ├── stop.sh                    # Graceful stop
 │   ├── kill.sh                    # Immediate kill
+│   ├── iteration-watcher.sh       # Per-iteration completion watcher (relay pattern)
 │   ├── session-init.sh            # SessionStart hook — writes .loom/.plugin_root
 │   └── hooks/                     # Hook handler scripts
 │       ├── bash-guard.sh

@@ -70,6 +70,7 @@ cp "$SRC/scripts/kill.sh"         "$TARGET_DIR/.loom/scripts/"
 cp "$SRC/scripts/loom-status.sh"  "$TARGET_DIR/.loom/scripts/"
 cp "$SRC/scripts/prd.sh"          "$TARGET_DIR/.loom/scripts/"
 cp "$SRC/scripts/session-init.sh" "$TARGET_DIR/.loom/scripts/"
+cp "$SRC/scripts/iteration-watcher.sh" "$TARGET_DIR/.loom/scripts/"
 cp "$SRC/scripts/hooks/"*.sh      "$TARGET_DIR/.loom/scripts/hooks/"
 
 chmod +x "$TARGET_DIR/.loom/scripts/"*.sh
