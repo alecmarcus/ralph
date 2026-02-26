@@ -865,6 +865,9 @@ export LOOM_ACTIVE=1
 
 # ─── Cleanup ─────────────────────────────────────────────────────
 cleanup() {
+  local exit_code=$?
+  # Log exit for post-mortem diagnosis of silent deaths
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] Loop exiting (exit $exit_code, iteration ${ITERATION:-0})" >> "$LOG_FILE" 2>/dev/null || true
   # Only attempt PR creation if the loop actually ran iterations.
   # Prevents premature push on early exit (e.g. --resume with no work).
   if [ "${ITERATION:-0}" -gt 0 ]; then
@@ -1062,6 +1065,22 @@ LOOM_DIR="$1"
 while true; do
   # Compose full output, then clear+draw in one atomic printf (no flash, no wrap artifacts)
   buf=$(cat "$LOOM_DIR/.header" 2>/dev/null || printf '  Starting…\n')
+
+  # Check if the loop process is still alive
+  LOOP_ALIVE=false
+  if [ -f "$LOOM_DIR/.pid" ]; then
+    _pid=$(cat "$LOOM_DIR/.pid" 2>/dev/null)
+    [ -n "$_pid" ] && kill -0 "$_pid" 2>/dev/null && LOOP_ALIVE=true
+  fi
+
+  if ! $LOOP_ALIVE; then
+    buf="${buf}
+$(printf '  \033[1;31mSTOPPED\033[0m')"
+    printf '\033[2J\033[H%s' "$buf"
+    sleep 5
+    continue
+  fi
+
   if [ -f "$LOOM_DIR/.iter_state" ]; then
     read -r iter start < "$LOOM_DIR/.iter_state"
     now=$(date +%s)
