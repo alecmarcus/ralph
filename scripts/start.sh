@@ -1277,6 +1277,7 @@ PREVIEWEOF
     --dangerously-skip-permissions \
     --verbose \
     --output-format stream-json \
+    --include-partial-messages \
     "$PROMPT" 2>>"$LOG_FILE" | \
     tee >(jq --unbuffered -c '
       select(.type == "stream_event") |
