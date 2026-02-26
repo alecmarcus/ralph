@@ -1303,7 +1303,7 @@ PREVIEWEOF
       else empty
       end
     ' >> "$SUBAGENT_LOG" 2>/dev/null || true) | \
-    jq --unbuffered -rj 'select(.type == "stream_event" and (.parent_tool_use_id | not)) |
+    jq --unbuffered -rj 'select(.type == "stream_event") |
       if .event.delta.type? == "text_delta" then .event.delta.text
       elif .event.type? == "content_block_start" and .event.content_block.type? == "text" and (.event.index // 0) > 0 then "\n"
       else empty end' 2>/dev/null | \
