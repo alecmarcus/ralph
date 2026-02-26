@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# ─── Loom Status Signal ────────────────────────────────────────
-# PostToolUse hook on Write: when the agent writes status.md,
-# sends a stderr nudge telling it to stop immediately.
-# The stop-guard (Stop hook) will allow exit once status.md
-# has been updated this iteration.
+# ─── Loom Status Kill ───────────────────────────────────────────
+# Terminates the Claude instance the moment status.md is written.
+# Uses the universal "continue: false" hook field to force Claude
+# to stop processing entirely. This is the hard guarantee that the
+# loop actually loops — the agent cannot ignore this.
 # ─────────────────────────────────────────────────────────────────
 
 # No-op outside Loom
@@ -16,7 +16,10 @@ INPUT=$(cat)
 FILE_PATH=$(echo "$INPUT" | jq -r '.tool_input.file_path // empty')
 
 if [[ "$FILE_PATH" == *"/.loom/status.md" ]]; then
-  echo "status.md written — iteration complete. Stop immediately. Do not call any more tools or produce any more output." >&2
+  jq -n '{
+    continue: false,
+    stopReason: "Iteration complete — status.md written. Restarting loop."
+  }'
   exit 0
 fi
 
