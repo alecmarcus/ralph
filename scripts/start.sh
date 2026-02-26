@@ -13,7 +13,7 @@ LOOM_DIR="$PROJECT_DIR/.loom"
 PROJECT_NAME="$(basename "$PROJECT_DIR")"
 LOG_FILE="$LOOM_DIR/history.log"
 TMUX_SESSION="loom-${PROJECT_NAME}"
-MAX_ITERATIONS=500
+MAX_ITERATIONS=1000
 # Default to tmux when running from a terminal (not inside Claude Code
 # or already inside a tmux session from re-execution), but only if
 # tmux is actually installed.
@@ -25,7 +25,7 @@ fi
 PREVIEW=false
 DIRECTIVE_FILE=""
 TIMEOUT=10800
-MAX_FAILURES=3
+MAX_FAILURES=5
 CONSECUTIVE_FAILURES=0
 PRD_PATH=""
 
@@ -1028,6 +1028,7 @@ if $USE_TMUX; then
   # Pass session name so the tmux child uses the same scoped name
   FORWARD_FLAGS="$FORWARD_FLAGS --session-name $(printf '%q' "$TMUX_SESSION")"
   [ "$CREATE_PR" = "no" ] && FORWARD_FLAGS="$FORWARD_FLAGS --pr false"
+  [ "$USE_WORKTREE" = "no" ] && FORWARD_FLAGS="$FORWARD_FLAGS --worktree false"
 
   # Clear PID file so re-executed instance doesn't hit the concurrency guard
   # (this process is still alive when the tmux instance starts)
