@@ -19,6 +19,18 @@ Replace `<project-name>` with the name of the current project directory.
 
 Review any returned patterns, decisions, or warnings. These are learnings from previous iterations — follow them.
 
+### 1.1b — Verify Branch
+
+You are working on branch **`{{CURRENT_BRANCH}}`**. All commits must land on this branch.
+
+Before proceeding, confirm you are on the correct branch:
+
+```bash
+git branch --show-current
+```
+
+If the output does not match `{{CURRENT_BRANCH}}`, run `git checkout {{CURRENT_BRANCH}}` before continuing. After subagent merges (Step 3.1), verify again that you are still on `{{CURRENT_BRANCH}}` — do not allow merges to switch you to another branch.
+
 ### 1.2 — Check for Uncommitted Changes
 
 ```bash
@@ -103,10 +115,19 @@ After launching all subagents, **stop and wait**. Do not make any tool calls. Do
 
 ### Step 3.1: Merge Subagent Results
 
-After **all** subagent results have arrived, integrate the work. The Task tool's worktree isolation can behave in several ways — handle all of them:
+After **all** subagent results have arrived, integrate the work.
 
-1. **Result includes a branch name** → merge it:
+**Branch guard:** Before merging anything, confirm you are on `{{CURRENT_BRANCH}}`:
+```bash
+git branch --show-current
+```
+If you are not on `{{CURRENT_BRANCH}}`, run `git checkout {{CURRENT_BRANCH}}` first. Subagent worktrees sometimes merge to the wrong branch — you must ensure all merges target `{{CURRENT_BRANCH}}`.
+
+The Task tool's worktree isolation can behave in several ways — handle all of them:
+
+1. **Result includes a branch name** → merge it **into `{{CURRENT_BRANCH}}`**:
    ```bash
+   git checkout {{CURRENT_BRANCH}}
    git merge --no-gpg-sign <branch-name>
    ```
 2. **Result does NOT include a branch name, or the branch doesn't exist** → the subagent's work may already be committed to the current branch, or the Task tool ran without worktree isolation. Check `git log` for new commits and inspect the working tree for changes. Do **not** assume failure — verify before concluding work is missing.
@@ -165,14 +186,35 @@ When committing, follow these rules:
 - **Do not bundle unrelated changes.** A feature and its tests can share a commit, but two separate features must not.
 - **Stage specific files by name.** Never use `git add -A` or `git add .`.
 
-### 4.5 — Update Documentation
+### 4.5 — Update
 
-Check if the work done this iteration warrants documentation updates:
+Documentation should almost always be added for every feature and API. It should be consistently formatted, clear, straightforward, and optimized for other agents (concise, imperative mood, instructive).
 
-- **Root `.docs/` and `CLAUDE.md`** — update if you changed project-wide patterns, APIs, architecture, or conventions that future agents or developers need to know about. Create these if they don't exist and the project has enough structure to benefit from them.
-- **Feature-scoped `.docs/` and `CLAUDE.md`** — if subagents worked in a feature directory (e.g. `src/auth/`, `lib/transport/`), create or update a `.docs/` directory and/or `CLAUDE.md` in that directory with usage notes, constraints, edge cases, and gotchas specific to that feature.
+- Functionality indexes
+- API docs
+- Call signatures
+- Requirements
+- Usage instructions & examples
+- Notable or non-obvious behaviors
 
-Keep docs concise and practical — focus on what a future agent (or developer) working in this area needs to know that isn't obvious from the code itself. Skip this step if the work was trivial (e.g. fixing a typo, updating a config value).
+**Root `.docs/` and `CLAUDE.md`** — update if you changed project-wide patterns, APIs, architecture, or conventions that future agents or developers need to know about. Create these if they don't exist and the project has enough structure to benefit from them.
+
+.docs/
+├── README.md
+├── api.md
+└── ...
+
+**Feature-scoped `.docs/` and `CLAUDE.md`** — if subagents worked in a feature directory (e.g. `src/auth/`, `lib/transport/`), create or update a `.docs/` directory and/or `CLAUDE.md` in that directory. In addition to traditional documentation, add any usage notes, constraints, edge cases, and gotchas specific to that feature. Create these if they don't exist and the project has enough structure to benefit from them.
+
+src/feature/
+├── CLAUDE.md
+├── .docs.rs
+├──── README.md
+├──── api.md
+├── api.rs
+└── ...
+
+Keep docs concise and practical — focus on what a future agent working in this area needs to know. Skip this step if the work was trivial (e.g. fixing a typo, updating a config value).
 
 ### 4.6 — Review Phase
 

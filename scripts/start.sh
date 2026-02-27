@@ -84,60 +84,68 @@ has_sources() {
 }
 
 generate_branch_slug() {
-  # Build a short summary (not the full content) for slug generation
-  local summary=""
+  local ts slug raw
+  ts="$(date '+%m%d-%H%M')"
+
+  # PRD mode: deterministic — filename + timestamp
   if [ -n "$PRD_PATH" ] && [ -f "$PRD_PATH" ]; then
-    summary="$(jq -r '.project + ": " + .description' "$PRD_PATH" 2>/dev/null)"
+    slug="$(basename "$PRD_PATH" .json)"
+    slug="$(echo "$slug" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g; s/--*/-/g; s/^-//; s/-$//')"
+    echo "${slug}-${ts}"
+    return
   fi
+
+  # Directive / source mode: ask Haiku for a topical slug
+  local summary=""
   if [ -n "$SOURCES_LINEAR" ]; then
-    summary="${summary:+$summary; }linear: $SOURCES_LINEAR"
-  fi
-  if [ -n "$SOURCES_GITHUB" ]; then
-    summary="${summary:+$summary; }github: $SOURCES_GITHUB"
-  fi
-  if [ -n "$SOURCES_SLACK" ]; then
-    summary="${summary:+$summary; }slack context"
-  fi
-  if [ -n "$SOURCES_NOTION" ]; then
-    summary="${summary:+$summary; }notion: $SOURCES_NOTION"
-  fi
-  if [ -n "$SOURCES_SENTRY" ]; then
-    summary="${summary:+$summary; }sentry: $SOURCES_SENTRY"
-  fi
-  if [ -z "$summary" ] && [ -n "$SOURCES_PROMPT" ]; then
+    summary="linear: $SOURCES_LINEAR"
+  elif [ -n "$SOURCES_GITHUB" ]; then
+    summary="github: $SOURCES_GITHUB"
+  elif [ -n "$SOURCES_SLACK" ]; then
+    summary="slack context"
+  elif [ -n "$SOURCES_NOTION" ]; then
+    summary="notion: $SOURCES_NOTION"
+  elif [ -n "$SOURCES_SENTRY" ]; then
+    summary="sentry: $SOURCES_SENTRY"
+  elif [ -n "$SOURCES_PROMPT" ]; then
     if [ -f "$SOURCES_PROMPT" ]; then
       summary="$(head -c 200 "$SOURCES_PROMPT")"
     else
       summary="$(echo "$SOURCES_PROMPT" | head -c 200)"
     fi
-  fi
-  if [ -z "$summary" ] && [ -n "$DIRECTIVE_FILE" ] && [ -f "$DIRECTIVE_FILE" ]; then
+  elif [ -n "$DIRECTIVE_FILE" ] && [ -f "$DIRECTIVE_FILE" ]; then
     summary="$(head -c 200 "$DIRECTIVE_FILE")"
   fi
 
-  local prompt
   if [ -n "$summary" ]; then
-    prompt="three-word kebab-case git branch slug for: ${summary:0:200}"
-  else
-    prompt="three-word kebab-case git branch slug, random evocative words"
+    raw=$(claude -p --model haiku "$(cat <<SLUGEOF
+You are a branch name generator. Output exactly one kebab-case slug — nothing else.
+
+Rules:
+- 2-3 lowercase words joined by hyphens
+- Only lowercase letters, numbers, and hyphens
+- Must describe the work
+- No quotes, backticks, explanation, or punctuation
+
+Examples:
+"linear: SCP-142 Implement rate limiting for public API endpoints" → scp-142-rate-limiting
+"github: https://github.com/acme/app/issues/387 — Auth tokens not refreshing after session timeout" → 387-fix-token-refresh
+"Refactor the database connection pooling layer to support read replicas and add health checks" → db-pool-replicas
+
+Work: ${summary:0:200}
+SLUGEOF
+)" 2>/dev/null | head -1 | tr -d '[:space:]')
+
+    # Strict validation: 2-4 lowercase alphanumeric segments separated by hyphens
+    if echo "$raw" | grep -qE '^[a-z0-9]+(-[a-z0-9]+){1,3}$'; then
+      slug="$raw"
+    else
+      slug=$(echo "$raw" | grep -oE '[a-z0-9]+-[a-z0-9]+(-[a-z0-9]+){0,2}' | head -1)
+    fi
   fi
 
-  local raw slug
-  raw=$(claude -p --model haiku "Output ONLY a slug like fix-auth-bug. No quotes, no explanation. $prompt" 2>/dev/null | head -1)
-
-  # Try to extract a kebab-case slug (e.g., "fix-auth-bug") from the response
-  slug=$(echo "$raw" | grep -oE '[a-z][a-z0-9]*(-[a-z0-9]+)+' | head -1)
-
-  # Fallback: take first 3 words, sanitize to kebab-case
-  if [ -z "$slug" ]; then
-    slug=$(echo "$raw" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9 ]/ /g; s/  */ /g; s/^ //; s/ $//' | awk '{for(i=1;i<=3&&i<=NF;i++) printf "%s%s",$i,(i<3&&i<NF?"-":"")}')
-  fi
-
-  # Enforce max length
-  slug=$(echo "$slug" | head -c 40 | sed 's/-$//')
-
-  # Ultimate fallback if claude call failed entirely
-  [ -z "$slug" ] && slug="loom-$(date '+%Y%m%d-%H%M%S')"
+  # Fallback: timestamp only
+  [ -z "$slug" ] && slug="loom-${ts}"
 
   echo "$slug"
 }
@@ -271,14 +279,24 @@ while [[ $# -gt 0 ]]; do
       shift 2
       ;;
     --worktree)
-      [[ $# -ge 2 ]] || die "$1 requires true or false"
-      USE_WORKTREE=$([ "$2" = "true" ] && echo "yes" || echo "no")
-      shift 2
+      # Accept bare --worktree (= yes) or --worktree true/false
+      if [[ $# -ge 2 ]] && [[ "$2" = "true" || "$2" = "false" ]]; then
+        USE_WORKTREE=$([ "$2" = "true" ] && echo "yes" || echo "no")
+        shift 2
+      else
+        USE_WORKTREE="yes"
+        shift
+      fi
       ;;
     --pr)
-      [[ $# -ge 2 ]] || die "$1 requires true or false"
-      CREATE_PR=$([ "$2" = "true" ] && echo "yes" || echo "no")
-      shift 2
+      # Accept bare --pr (= yes) or --pr true/false
+      if [[ $# -ge 2 ]] && [[ "$2" = "true" || "$2" = "false" ]]; then
+        CREATE_PR=$([ "$2" = "true" ] && echo "yes" || echo "no")
+        shift 2
+      else
+        CREATE_PR="yes"
+        shift
+      fi
       ;;
     --prd)
       [[ $# -ge 2 ]] || die "$1 requires a path to a PRD file or directory"
@@ -1258,6 +1276,11 @@ while [ "$ITERATION" -lt "$MAX_ITERATIONS" ]; do
 
   # Substitute PRD path placeholder
   PROMPT="${PROMPT//\{\{PRD_FILE\}\}/$PRD_PATH}"
+
+  # Inject current branch so the orchestrator knows where commits should land
+  local current_branch
+  current_branch="$(git -C "$PROJECT_DIR" branch --show-current 2>/dev/null || echo "unknown")"
+  PROMPT="${PROMPT//\{\{CURRENT_BRANCH\}\}/$current_branch}"
 
   # ─── Iteration marker for stop-guard hook ──
   touch "$LOOM_DIR/.iteration_marker"
