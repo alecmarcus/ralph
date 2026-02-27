@@ -1189,6 +1189,7 @@ if [ "$USE_WORKTREE" = "yes" ]; then
     DIRECTIVE_FILE="${LOOM_DIR}/.directive-${RUN_SLUG}"
   fi
 
+  SOURCE_PROJECT_DIR="$PROJECT_DIR"
   PROJECT_DIR="$WORKTREE_DIR"
   # Repoint all runtime state into the worktree so concurrent looms
   # don't clobber each other. Source .loom/ keeps only checked-in files.
@@ -1206,6 +1207,11 @@ if [ "$USE_WORKTREE" = "yes" ]; then
     DIRECTIVE_FILE="$LOOM_DIR/.directive"
   fi
   rm -f "$SOURCE_LOOM_DIR/.piped_directive"
+  # Repoint PRD into worktree if it lives under the source project tree
+  if [[ "$PRD_PATH" == "$SOURCE_PROJECT_DIR/"* ]]; then
+    PRD_PATH="${WORKTREE_DIR}${PRD_PATH#"$SOURCE_PROJECT_DIR"}"
+    export LOOM_PRD_PATH="$PRD_PATH"
+  fi
   log "${CYAN}Worktree created:${NC} $WORKTREE_DIR (branch: $WORKTREE_BRANCH)"
 else
   # Non-worktree runs: derive run slug from current branch
