@@ -267,46 +267,49 @@ Each review subagent prompt must include:
    - Are there acceptance criteria the implementation doesn't address?
    - Does the code do what the story describes, or something subtly different?
    - Does the diff include changes not related to this story?
-   - Do NOT review style, formatting, or subjective preferences.
-7. Required structured output format:
+   - Are there bugs, edge cases, or correctness issues?
+   - Are there patterns worth remembering for future iterations?
+7. Required structured output — every finding is **ACTION** (must fix) or **LEARNING** (worth remembering). Bias toward ACTION — if in doubt, it's an action.
 ```
-REVIEW_RESULT: PASS | FAIL
 STORY: <story-id>
 CRITERIA:
   - [PASS] <criterion text>
   - [FAIL] <criterion text> — <explanation>
-ISSUES:
-  - <severity: critical|major|minor> <file>:<line-range> — <description>
-SUGGESTIONS:
-  - <description> (optional, non-blocking)
+ACTION:
+  - <file>:<line-range> — <description>
+LEARNING:
+  - <description> — <why this matters for future work>
 ```
 
 After launching all review subagents, **stop and wait**. Do not make any tool calls. Do not poll with Bash. Results arrive automatically.
 
-#### 4.6.5 — Collect and Assess Findings
+#### 4.6.5 — Process Findings
 
-- **All PASS, no critical/major issues** → review complete, proceed to 4.7
-- **Any FAIL or critical/major issues** → proceed to 4.6.6
-- **Only minor issues or suggestions** → note in status.md, proceed to 4.7
+For each review result, split findings into two tracks:
 
-#### 4.6.6 — Launch Fix Subagents (if needed)
+**Actions** — fix them now:
 
-For each story with critical or major findings, launch **one fix subagent** with `isolation: "worktree"`. Each receives:
-
-1. The original story object
-2. The specific review findings (FAIL criteria and critical/major issues only)
-3. Instructions to fix only the identified issues — no refactoring, no extra features
-
-After fix subagents complete:
-
-1. Merge fix branches (same process as Step 3.1)
-2. Run the full test suite
-3. If tests pass, commit: `fix(<scope>): address review findings for <story-id>`
-4. If tests fail, `git revert` the fix commits — the original code was green. Log the failure in status.md.
+1. If any story has ACTION items, launch **one fix subagent per story** with `isolation: "worktree"`. Each receives the original story object and only its ACTION items. Instructions: fix the identified issues — no refactoring, no extra features.
+2. After fix subagents complete, merge fix branches (same process as Step 3.1).
+3. Run the full test suite.
+4. If tests pass, commit: `fix(<scope>): address review findings for <story-id>`
+5. If tests fail, `git revert` the fix commits — the original code was green. Log the failure in status.md.
+6. If no stories have ACTION items, skip straight to learnings.
 
 **One review cycle, one fix cycle. No recursion.**
 
-### 4.7 — Store Learnings in Memory
+**Learnings** — capture them:
+
+For each LEARNING item, decide the appropriate destination (one or both):
+
+- **Vestige** — patterns, gotchas, or decisions useful to future iterations with no memory of this one. Use `mcp__vestige__codebase(action: "remember_pattern", ...)` or `mcp__vestige__smart_ingest(...)`.
+- **Artifacts** — conventions, constraints, or API behaviors that belong in project documentation. Update the relevant `.docs/` directory, `CLAUDE.md`, or inline code comments.
+
+Do not discard learnings. Every LEARNING must be stored somewhere.
+
+### 4.7 — Store Operational Learnings in Memory
+
+Review learnings from 4.6.5 are already captured. This step covers learnings from your **own execution** — things you discovered while orchestrating, merging, or debugging that weren't flagged by reviewers.
 
 Use Vestige to store any operational learnings from this iteration:
 
@@ -348,7 +351,7 @@ Overwrite `.loom/status.md` with a fresh report containing:
 | **Tests Added / Updated** | List of new or modified test files.                                              |
 | **Tool-Gated Stories**    | Stories skipped because required capabilities aren't available (story ID, missing capability). |
 | **Subagent Outcomes**     | For each subagent: story ID, pass/fail, brief summary.                           |
-| **Review Outcomes**       | For each reviewed story: PASS/FAIL, issues found (severity + description), fixes applied (success/fail). Omit if review was skipped. |
+| **Review Outcomes**       | For each reviewed story: actions taken (description, fix success/fail), learnings captured (description, destination: vestige/artifact/both). Omit if review was skipped. |
 
 ---
 
