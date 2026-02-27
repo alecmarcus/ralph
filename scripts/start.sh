@@ -1524,7 +1524,8 @@ while [ "$ITERATION" -lt "$MAX_ITERATIONS" ]; do
   PROMPT="${PROMPT//\{\{PRD_FILE\}\}/$PRD_PATH}"
 
   # Inject current branch so the orchestrator knows where commits should land
-  local current_branch
+  # NOTE: no `local` — this is in the main loop body, not a function.
+  # bash 3.2 errors on `local` outside functions, fatal under set -e.
   current_branch="$(git -C "$PROJECT_DIR" branch --show-current 2>/dev/null || echo "unknown")"
   PROMPT="${PROMPT//\{\{CURRENT_BRANCH\}\}/$current_branch}"
 
