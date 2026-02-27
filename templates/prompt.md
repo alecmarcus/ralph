@@ -44,9 +44,9 @@ git status --porcelain
 3. Read the diff: `git diff`
 4. Run the test suite to assess the current state.
 5. Based on the status, stories, diff, and test results, decide for each set of changes whether to:
-   - **Commit** — tests pass, work is complete or meaningfully progressed
+   - **Commit** — tests pass, work is complete or meaningfully progressed. This includes non-code artifacts (agent memory files, config, documentation, notes) — commit them with an appropriate message rather than discarding work.
    - **Fix then commit** — tests fail but the work is salvageable, fix and commit
-   - **Revert** — changes are broken or conflicting beyond quick repair (`git checkout <files>`)
+   - **Revert** — changes are **broken production code** that fails tests and cannot be quickly repaired (`git checkout <files>`). Never revert a file just because it seems unrelated to the current stories — if it's a valid change (memory, config, docs), commit it.
 6. Update the PRD for any stories that were completed or progressed.
 7. **Do NOT select new stories.** Skip Steps 2–3 entirely. Proceed directly to Step 4.8 (emit result signal) and Step 4.9 (write status.md).
 
