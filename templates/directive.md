@@ -23,6 +23,8 @@ Review any returned patterns, decisions, or warnings. These are learnings from p
 
 Read `.loom/status.md`. Note any failing tests or uncommitted changes from a previous iteration. If they are relevant to the directive, address them as part of this iteration.
 
+**Pre-decision recall:** Before executing the directive, search Vestige for relevant recent learnings — especially bug fixes, gotchas, and anti-patterns related to the files and domains the directive will touch: `mcp__vestige__search(query: "<project-name> <directive-domain> bug fix gotcha anti-pattern")`. Review returned context before making implementation decisions.
+
 ---
 
 ## Step 2: Execute Directive
@@ -31,7 +33,15 @@ Read `.loom/status.md`. Note any failing tests or uncommitted changes from a pre
 
 {{DIRECTIVE}}
 
-Use subagents (Task tool) to parallelize independent pieces of work where possible. Assign one distinct unit of work per subagent. Always **search the codebase before assuming something is missing** — don't reimplement what already exists.
+Use subagents (Task tool) to parallelize independent pieces of work where possible. Assign one distinct unit of work per subagent. Each subagent prompt **must** include:
+
+1. The assigned unit of work — clear, unambiguous instructions.
+2. A reminder to **read all source documents in full** before writing any code. If the directive references specs, ADRs, or external artifacts, the subagent must read them line by line — not skim or excerpt. Note which sections informed each decision.
+3. A reminder to **cite sources in commit messages** — every non-trivial implementation choice must reference the source document and section that drove it. Note judgment calls explicitly.
+4. A reminder to **search the codebase before assuming something is missing** — don't reimplement what already exists.
+5. A reminder to **only implement the assigned work** — do not "fix" existing code that seems inconsistent with other specs.
+6. A reminder to **update documentation** — if the work changes project-wide patterns, APIs, or conventions, update root `.docs/` and/or `CLAUDE.md`. Skip for trivial changes.
+7. A reminder to **search Vestige** for patterns relevant to the assigned work before coding: `mcp__vestige__search(query: "<project-name> <domain> patterns gotchas")`. Agents that query memory before implementing make better decisions.
 
 ### Visual verification
 
@@ -117,22 +127,28 @@ The review subagent prompt must include:
 2. The full diff: `git diff HEAD~N..HEAD`
 3. Instructions to read the project's CLAUDE.md (if it exists)
 4. Instructions to read `.docs/` directories in the modified feature areas (ADRs, specs, conventions)
-5. Review checklist:
+5. **Read every line of the diff** — do not skip files or skim hunks. For each modified file, read surrounding unchanged code to understand the full context of the change.
+6. Review checklist:
    - Does the diff satisfy the directive's requirements?
    - Does the code follow conventions from CLAUDE.md and `.docs/`?
    - Are there requirements the implementation doesn't address?
    - Does the code do what the directive describes, or something subtly different?
-   - Dooes the code follow all style, formatting, and standards requirements?
+   - Does the code follow all style, formatting, and standards requirements?
    - Does the diff include changes not related to this directive?
    - Are there bugs, dead code, unreachable paths, correctness errors, or wrong API usage?
-6. Do not classify severity. Findings are binary: actionable or non-actionable. Everything actionable must be fixed. Documenting a bug instead of fixing it is never acceptable.
-7. Required structured output format:
+   - **Provenance check:** Can every changed hunk trace to a specific directive requirement? Flag untraceable changes.
+   - **Thematic review:** Beyond the literal checklist, what architectural concern does the directive point at? Consider whether the implementation addresses the underlying design intent, not just the surface requirements.
+7. Do not classify severity. Findings are binary: actionable or non-actionable. Everything actionable must be fixed. Documenting a bug instead of fixing it is never acceptable.
+8. Required structured output format:
 ```
 REVIEW_RESULT: PASS | FAIL
 DIRECTIVE: <brief directive summary>
 REQUIREMENTS:
-  - [PASS] <requirement text>
+  - [PASS] <requirement text> — satisfied by <file>:<line-range>
   - [FAIL] <requirement text> — <explanation>
+PROVENANCE:
+  - <file>:<line-range> — traces to <directive requirement>
+  - <file>:<line-range> — NO PROVENANCE: <description of untraceable change>
 ISSUES:
   - <file>:<line-range> — <description>
 SUGGESTIONS:
@@ -221,6 +237,7 @@ Overwrite `.loom/status.md` with a fresh report:
 - **Vestige is your long-term memory across iterations.** Store patterns, decisions, and gotchas — not progress updates.
 - **Writing `status.md` is always your final action.** You will be killed immediately after. Make sure all other work is done first.
 - **If the directive is fully complete and no tests are failing**, emit `LOOM_RESULT:DONE` and update status.md to say so. The loop controller will halt — do not emit `SUCCESS`.
+- **Never implement ahead of documentation.** If the directive requires architectural decisions that aren't documented in `.docs/adrs/` or `.docs/specs/`, write the decision document first. Do not proceed with implementation until the rationale is recorded. Retroactive documentation is a provenance violation.
 - **NEVER call `EnterPlanMode`.** Execute directly.
 - **NEVER call `AskUserQuestion`.** No human is present.
 - **NEVER call `TaskOutput`.** Background subagent results are delivered automatically.

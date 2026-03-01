@@ -40,15 +40,17 @@ git status --porcelain
 **If there are uncommitted changes**, enter **repair mode**:
 
 1. Read `.loom/status.md` for context on the previous iteration.
-2. Read the relevant stories from the PRD using `jq` — not to select new work, but to understand what the uncommitted changes relate to.
-3. Read the diff: `git diff`
-4. Run the test suite to assess the current state.
-5. Based on the status, stories, diff, and test results, decide for each set of changes whether to:
+2. **Search Vestige** for recent bug fixes, gotchas, and anti-patterns related to the files with uncommitted changes: `mcp__vestige__search(query: "<project-name> <changed-files> bug fix gotcha")`. Review returned context before making repair decisions.
+3. Read the relevant stories from the PRD using `jq` — not to select new work, but to understand what the uncommitted changes relate to.
+4. Read the diff: `git diff`
+5. Run the test suite to assess the current state.
+6. Based on the status, stories, diff, test results, and Vestige context, decide for each set of changes whether to:
    - **Commit** — tests pass, work is complete or meaningfully progressed. This includes non-code artifacts (agent memory files, config, documentation, notes) — commit them with an appropriate message rather than discarding work.
    - **Fix then commit** — tests fail but the work is salvageable, fix and commit
    - **Revert** — changes are **broken production code** that fails tests and cannot be quickly repaired (`git checkout <files>`). Never revert a file just because it seems unrelated to the current stories — if it's a valid change (memory, config, docs), commit it.
-6. Update the PRD for any stories that were completed or progressed.
-7. **Do NOT select new stories.** Skip Steps 2–3 entirely. Proceed directly to Step 4.8 (emit result signal) and Step 4.9 (write status.md).
+7. **Cite evidence for every decision.** Each commit/fix/revert must reference the specific evidence that justified it: which test results (test name, pass/fail), which story fields (story ID, acceptance criterion), which diff hunks (file:line-range). Log these citations in commit messages. No gut-feel decisions — if you can't cite evidence, don't act.
+8. Update the PRD for any stories that were completed or progressed.
+9. **Do NOT select new stories.** Skip Steps 2–3 entirely. Proceed directly to Step 4.8 (emit result signal) and Step 4.9 (write status.md).
 
 The next iteration will start with a clean tree and pick up new work.
 
@@ -88,6 +90,15 @@ The `LOOM_CAPABILITIES` environment variable contains available capability categ
 - If all remaining actionable stories are tool-gated (require capabilities not in `LOOM_CAPABILITIES`), emit `LOOM_RESULT:DONE`.
 - Stories without a `tools` field or with `"tools": []` are always eligible.
 
+### Provenance hierarchy enforcement
+
+When selecting stories, detect and block circular or retroactive provenance:
+
+- If a story's purpose is to **write an ADR, spec, or decision document** for work that is already implemented or in-progress, that story is a **full blocker on all stories that depend on the undocumented decision**. The hierarchy is: decision document first, implementation second. If implementation happened without the document, the document must be written before any further work on that area proceeds.
+- Concretely: if story A says "write ADR for X" and story B says "implement X" and B is `in_progress` or `done` while A is `pending`, mark B as `blocked` by A. Do not select B or any story that depends on B until A is complete.
+- If a story creates documentation retroactively for decisions already made, escalate it to top priority — it must be the next story executed, ahead of any feature work that builds on the undocumented decision.
+- This rule is absolute. "We'll document it later" is not acceptable. The provenance chain must be intact before building on top of it.
+
 ### Combine with failing-test fixes
 
 If Step 1.2 found failing tests, include a fix for each failure alongside the PRD stories. Failing-test fixes take scheduling priority.
@@ -105,11 +116,14 @@ Each subagent prompt **must** include:
 3. A reminder to write clean, minimal code — no over-engineering.
 4. A reminder to **search the codebase before assuming something is missing** — don't reimplement what already exists.
 5. A reminder to **only implement the assigned story** — do not "fix" existing code that seems inconsistent with other specs.
-6. If the story has `sources` entries, a reminder that **the source documents are the source of truth** — the subagent should read the referenced source file and section, and if the story's fields conflict with or omit details from the source, follow the source.
-7. If the story has a non-empty `tools` array, tell the subagent which capabilities are available and instruct them to: **write test files** for visual/interaction acceptance criteria using the project's test framework (Playwright tests, Detox/Maestro tests, etc.) as durable verification, and **use MCP tools ad-hoc** during implementation to screenshot, inspect, and debug visual changes before committing. Don't hardcode specific MCP API calls — let the subagent discover available tools via `ListMcpResourcesTool`.
-8. A reminder to **update documentation** — if the story changes project-wide patterns, APIs, or conventions, update root `.docs/` and/or `CLAUDE.md`. If it adds or changes a feature area, create or update a `.docs/` directory and/or `CLAUDE.md` in the relevant feature directory with usage notes, constraints, and gotchas that aren't obvious from code alone. Skip for trivial changes.
+6. If the story has `sources` entries, a reminder that **the source documents are the source of truth** — the subagent must **read each referenced source file in full**, line by line, before writing any code. Note which sections informed each implementation decision. If the story's fields conflict with or omit details from the source, follow the source.
+7. **Maintain a provenance trail** — every non-trivial implementation choice must reference the source document and section that drove it (e.g., `spec.md:45-52`, `ADR-003:rationale`) in commit messages. Note judgment calls explicitly: when the source is ambiguous or silent and the subagent makes a discretionary choice, document it as such.
+8. If the story has a non-empty `tools` array, tell the subagent which capabilities are available and instruct them to: **write test files** for visual/interaction acceptance criteria using the project's test framework (Playwright tests, Detox/Maestro tests, etc.) as durable verification, and **use MCP tools ad-hoc** during implementation to screenshot, inspect, and debug visual changes before committing. Don't hardcode specific MCP API calls — let the subagent discover available tools via `ListMcpResourcesTool`.
+9. A reminder to **update documentation** — if the story changes project-wide patterns, APIs, or conventions, update root `.docs/` and/or `CLAUDE.md`. If it adds or changes a feature area, create or update a `.docs/` directory and/or `CLAUDE.md` in the relevant feature directory with usage notes, constraints, and gotchas that aren't obvious from code alone. Skip for trivial changes.
 
 Do **not** combine multiple stories into a single subagent.
+
+**Before dispatching**, search Vestige for patterns relevant to each story's domain: `mcp__vestige__search(query: "<project-name> <story-domain> patterns gotchas")`. If results are relevant, include them as additional context in the subagent prompt — e.g., before dispatching a story about auth, search `"auth patterns gotchas <project>"` and pass any relevant memories so subagents benefit from prior iterations' learnings.
 
 After launching all subagents, **stop and wait**. Do not make any tool calls. Do not poll with Bash. Do not check git status, read files, or monitor progress. Subagent results are delivered to you automatically when each one completes. You will receive them without doing anything.
 
@@ -260,21 +274,27 @@ Each review subagent prompt must include:
 2. The relevant diff subset: `git diff HEAD~N..HEAD -- <story-files>`
 3. Instructions to read the project's CLAUDE.md (if it exists)
 4. Instructions to read `.docs/` directories in the modified feature areas (ADRs, specs, conventions)
-5. Instructions to read source documents from the story's `sources` array
-6. Review checklist:
-   - Does the diff satisfy each acceptance criterion? (pass/fail per criterion)
+5. Instructions to read source documents from the story's `sources` array — **read each source in full, line by line**, not just the referenced sections. Adjacent sections often contain applicable constraints.
+6. **Read every line of the diff** — do not skip files or skim hunks. For each modified file, read surrounding unchanged code to understand the full context of the change.
+7. Review checklist:
+   - Does the diff satisfy each acceptance criterion? (pass/fail per criterion, with source citations)
    - Does the code follow conventions from CLAUDE.md and `.docs/`?
    - Are there acceptance criteria the implementation doesn't address?
    - Does the code do what the story describes, or something subtly different?
    - Does the diff include changes not related to this story?
    - Are there bugs, edge cases, or correctness issues?
    - Are there patterns worth remembering for future iterations?
-7. Do not classify severity. Findings are binary: **ACTION** (must fix) or **LEARNING** (worth remembering). Everything actionable must be done. Documenting a bug instead of fixing it is never acceptable.
+   - **Provenance check:** Can every changed hunk trace to a specific requirement or decision? Flag untraceable changes.
+   - **Thematic review:** Beyond the literal checklist, what architectural concern does the story point at? Consider whether the implementation addresses the underlying design intent, not just the surface requirements.
+8. Do not classify severity. Findings are binary: **ACTION** (must fix) or **LEARNING** (worth remembering). Everything actionable must be done. Documenting a bug instead of fixing it is never acceptable.
 ```
 STORY: <story-id>
 CRITERIA:
-  - [PASS] <criterion text>
+  - [PASS] <criterion text> — satisfied by <file>:<line-range>
   - [FAIL] <criterion text> — <explanation>
+PROVENANCE:
+  - <file>:<line-range> — traces to <requirement/decision reference>
+  - <file>:<line-range> — NO PROVENANCE: <description of untraceable change>
 ACTION:
   - <file>:<line-range> — <description>
 LEARNING:
@@ -299,6 +319,8 @@ For each review result, split findings into two tracks:
 6. If no stories have ACTION items, skip straight to learnings.
 
 **One review cycle, one fix cycle. No recursion.**
+
+**Immediate memory save** — before processing learnings, save any architectural decisions or code patterns discovered during the review to Vestige now. The review phase often surfaces the most valuable learnings, and delaying risks losing them if the iteration is interrupted. Use `mcp__vestige__codebase(action: "remember_pattern", ...)` or `mcp__vestige__codebase(action: "remember_decision", ...)` as appropriate.
 
 **Learnings** — capture them:
 
