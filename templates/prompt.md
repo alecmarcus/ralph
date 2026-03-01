@@ -269,7 +269,7 @@ Each review subagent prompt must include:
    - Does the diff include changes not related to this story?
    - Are there bugs, edge cases, or correctness issues?
    - Are there patterns worth remembering for future iterations?
-7. Required structured output — every finding is **ACTION** (must fix) or **LEARNING** (worth remembering). Bias toward ACTION — if in doubt, it's an action.
+7. Do not classify severity. Findings are binary: **ACTION** (must fix) or **LEARNING** (worth remembering). Everything actionable must be done. Documenting a bug instead of fixing it is never acceptable.
 ```
 STORY: <story-id>
 CRITERIA:
@@ -284,6 +284,8 @@ LEARNING:
 After launching all review subagents, **stop and wait**. Do not make any tool calls. Do not poll with Bash. Results arrive automatically.
 
 #### 4.6.5 — Process Findings
+
+**Before processing, reclassify miscategorized findings.** Scan all LEARNING items — if any describe bugs, dead code, correctness errors, wrong API usage, unreachable paths, or broken integration points, reclassify them as ACTIONs. The orchestrator is the last gate before commit — do not let bugs through as documentation.
 
 For each review result, split findings into two tracks:
 

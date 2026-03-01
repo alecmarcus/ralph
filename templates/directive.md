@@ -122,9 +122,11 @@ The review subagent prompt must include:
    - Does the code follow conventions from CLAUDE.md and `.docs/`?
    - Are there requirements the implementation doesn't address?
    - Does the code do what the directive describes, or something subtly different?
+   - Dooes the code follow all style, formatting, and standards requirements?
    - Does the diff include changes not related to this directive?
-   - Do NOT review style, formatting, or subjective preferences.
-6. Required structured output format:
+   - Are there bugs, dead code, unreachable paths, correctness errors, or wrong API usage?
+6. Do not classify severity. Findings are binary: actionable or non-actionable. Everything actionable must be fixed. Documenting a bug instead of fixing it is never acceptable.
+7. Required structured output format:
 ```
 REVIEW_RESULT: PASS | FAIL
 DIRECTIVE: <brief directive summary>
@@ -132,7 +134,7 @@ REQUIREMENTS:
   - [PASS] <requirement text>
   - [FAIL] <requirement text> — <explanation>
 ISSUES:
-  - <severity: critical|major|minor> <file>:<line-range> — <description>
+  - <file>:<line-range> — <description>
 SUGGESTIONS:
   - <description> (optional, non-blocking)
 ```
@@ -141,16 +143,17 @@ After launching the review subagent, **stop and wait**. Do not make any tool cal
 
 #### 3.4.5 — Collect and Assess Findings
 
-- **PASS, no critical/major issues** → review complete, proceed to 3.5
-- **FAIL or critical/major issues** → proceed to 3.4.6
-- **Only minor issues or suggestions** → note in status.md, proceed to 3.5
+**Before assessing, reclassify miscategorized findings.** Scan all minor issues and suggestions — if any describe bugs, dead code, correctness errors, wrong API usage, unreachable paths, or broken integration points, reclassify them MUST FIX action items. The orchestrator is the last gate before commit — do not let findings with action items through. Period.
+
+- **PASS AND no actionable issues** → review complete, proceed to 3.5
+- **FAIL OR any actionable issues, even minor suggestions** → proceed to 3.4.6
 
 #### 3.4.6 — Launch Fix Subagent (if needed)
 
 Launch **one fix subagent** with `isolation: "worktree"`. It receives:
 
 1. The original directive text
-2. The specific review findings (FAIL requirements and critical/major issues only)
+2. The specific review findings (FAIL requirements and all actionable issues)
 3. Instructions to fix only the identified issues — no refactoring, no extra features
 
 After the fix subagent completes:
@@ -205,7 +208,7 @@ Overwrite `.loom/status.md` with a fresh report:
 | **Fixed This Iteration** | Any previously-failing tests that now pass. |
 | **Tests Added / Updated** | List of new or modified test files. |
 | **Work Summary** | What the directive accomplished this iteration. |
-| **Review Outcomes** | PASS/FAIL, issues found (severity + description), fixes applied (success/fail). Omit if review was skipped. |
+| **Review Outcomes** | PASS/FAIL, issues found with description and references, fixes applied (success/fail). Omit if review was skipped. |
 
 ---
 
