@@ -4,13 +4,13 @@
 # CLAUDE.md, and available memory tools before diving into work.
 # ─────────────────────────────────────────────────────────────────
 
-# No-op outside Loom
-[ "$LOOM_ACTIVE" != "1" ] && exit 0
+# No-op outside Loom — detect via .loom marker file instead of env var
+LOOM_DIR="${PWD}/.loom"
+[ -f "$LOOM_DIR/.pid" ] || LOOM_DIR="${CLAUDE_PROJECT_DIR:-.}/.loom"
+[ -f "$LOOM_DIR/.pid" ] || exit 0
 
 # No enforcement in preview
 [ "$LOOM_PREVIEW" = "1" ] && exit 0
-
-LOOM_DIR="${CLAUDE_PROJECT_DIR:-.}/.loom"
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] [subagent-recall] injecting context" >> "$LOOM_DIR/logs/debug.log" 2>/dev/null || true
 
 jq -n '{

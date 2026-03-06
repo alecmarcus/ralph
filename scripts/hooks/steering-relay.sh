@@ -7,10 +7,10 @@
 # tool call after the file appears.
 # ─────────────────────────────────────────────────────────────────
 
-# No-op outside Loom
-[ "$LOOM_ACTIVE" != "1" ] && exit 0
-
-LOOM_DIR="${CLAUDE_PROJECT_DIR:-.}/.loom"
+# No-op outside Loom — detect via .loom marker file instead of env var
+LOOM_DIR="${PWD}/.loom"
+[ -f "$LOOM_DIR/.pid" ] || LOOM_DIR="${CLAUDE_PROJECT_DIR:-.}/.loom"
+[ -f "$LOOM_DIR/.pid" ] || exit 0
 STEERING_FILE="$LOOM_DIR/.steering"
 
 # Fast path: no steering file → exit immediately (single stat syscall)
