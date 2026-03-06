@@ -1296,6 +1296,118 @@ _Completed $(date -u '+%Y-%m-%dT%H:%M:%SZ')_"
   esac
 }
 
+# ─── Cross-PRD File Locking ──────────────────────────────────────
+# When multiple PRDs run concurrently on the same project, their
+# stories may touch overlapping files. A shared lock directory under
+# ~/.claude-worktrees/<project>/.file-locks/ tracks which files each
+# session claims. The orchestrator skips stories that conflict with
+# other active sessions.
+FILE_LOCK_DIR=""
+LOOM_LOCKED_FILES=""
+
+init_file_lock_dir() {
+  local base_dir="$HOME/.claude-worktrees/$PROJECT_NAME"
+  FILE_LOCK_DIR="$base_dir/.file-locks"
+  mkdir -p "$FILE_LOCK_DIR" 2>/dev/null || true
+}
+
+# Extract pending story files from a PRD.
+extract_prd_files() {
+  local prd="$1"
+  [ -f "$prd" ] || return
+  jq -r '[.stories[] | select(.status != "done" and .status != "cancelled") | .files[]?] | unique | .[]' "$prd" 2>/dev/null
+}
+
+# Register this session's file claims from the PRD.
+# Called before the main loop and refreshed each iteration.
+register_file_locks() {
+  [ -z "$FILE_LOCK_DIR" ] && return 0
+  [ -z "$PRD_PATH" ] || [ ! -f "$PRD_PATH" ] && return 0
+
+  local slug="${WORKTREE_BRANCH:-$$}"
+  slug="${slug//\//-}"
+
+  local files_json
+  files_json=$(extract_prd_files "$PRD_PATH" | jq -Rs 'split("\n") | map(select(. != ""))')
+  [ -z "$files_json" ] || [ "$files_json" = "[]" ] && return 0
+
+  jq -n \
+    --arg pid "$$" \
+    --arg branch "${WORKTREE_BRANCH:-}" \
+    --arg prd "$PRD_PATH" \
+    --arg started "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" \
+    --argjson files "$files_json" \
+    '{pid: ($pid | tonumber), branch: $branch, prd: $prd, started: $started, files: $files}' \
+    > "$FILE_LOCK_DIR/${slug}.json" 2>/dev/null
+
+  debug "File locks registered: $(echo "$files_json" | jq 'length') files → $FILE_LOCK_DIR/${slug}.json"
+}
+
+# Check for file overlaps with other active Loom sessions.
+# Sets LOOM_LOCKED_FILES (comma-separated) for the orchestrator.
+check_file_conflicts() {
+  [ -z "$FILE_LOCK_DIR" ] && return 0
+  [ -z "$PRD_PATH" ] || [ ! -f "$PRD_PATH" ] && return 0
+
+  local my_slug="${WORKTREE_BRANCH:-$$}"
+  my_slug="${my_slug//\//-}"
+
+  local my_files
+  my_files=$(extract_prd_files "$PRD_PATH" | sort)
+  [ -z "$my_files" ] && return 0
+
+  local all_locked="" conflict_report=""
+
+  for lock_file in "$FILE_LOCK_DIR"/*.json; do
+    [ -f "$lock_file" ] || continue
+    [ "$(basename "$lock_file" .json)" = "$my_slug" ] && continue
+
+    local other_pid other_branch
+    other_pid=$(jq -r '.pid' "$lock_file" 2>/dev/null)
+    other_branch=$(jq -r '.branch' "$lock_file" 2>/dev/null)
+
+    # Stale lock: PID dead → remove
+    if [ -n "$other_pid" ] && ! kill -0 "$other_pid" 2>/dev/null; then
+      debug "Removing stale file lock: $lock_file (pid $other_pid dead)"
+      rm -f "$lock_file"
+      continue
+    fi
+
+    local other_files
+    other_files=$(jq -r '.files[]' "$lock_file" 2>/dev/null | sort)
+    [ -z "$other_files" ] && continue
+
+    local overlap
+    overlap=$(comm -12 <(echo "$my_files") <(echo "$other_files"))
+    if [ -n "$overlap" ]; then
+      local overlap_count
+      overlap_count=$(echo "$overlap" | wc -l | tr -d ' ')
+      conflict_report="${conflict_report}  ${other_branch} (${overlap_count} files)\n"
+      all_locked="${all_locked}${overlap}"$'\n'
+    fi
+  done
+
+  if [ -n "$conflict_report" ]; then
+    log "${YELLOW}File conflicts with other active sessions:${NC}"
+    echo -e "$conflict_report" | while IFS= read -r line; do
+      [ -n "$line" ] && log "$line" || true
+    done
+  fi
+
+  LOOM_LOCKED_FILES=$(echo "$all_locked" | sort -u | grep -v '^$' | paste -sd, - || true)
+  export LOOM_LOCKED_FILES
+  debug "LOOM_LOCKED_FILES=${LOOM_LOCKED_FILES:-<none>}"
+}
+
+# Remove this session's lock file.
+release_file_locks() {
+  [ -z "$FILE_LOCK_DIR" ] && return 0
+  local slug="${WORKTREE_BRANCH:-$$}"
+  slug="${slug//\//-}"
+  rm -f "$FILE_LOCK_DIR/${slug}.json" 2>/dev/null || true
+  debug "File locks released: ${slug}"
+}
+
 # ─── Preflight ───────────────────────────────────────────────────
 if ! command -v claude &>/dev/null; then
   die "claude CLI not found in PATH"
@@ -1354,6 +1466,8 @@ cleanup() {
   else
     debug "  skipping create_pr (ITERATION=0)"
   fi
+  debug "  releasing file locks"
+  release_file_locks
   debug "  removing sentinels"
   rm -f "$LOOM_DIR/.directive" "$LOOM_DIR"/.directive-* "$LOOM_DIR/.piped_directive" "$LOOM_DIR"/.piped_directive-* "$LOOM_DIR/.iteration_marker" "$LOOM_DIR/.stop" "$LOOM_DIR/.pid" "$LOOM_DIR/.iter_state" "$LOOM_DIR/.header-pane.sh" "$LOOM_DIR/.steering" "$LOOM_DIR/.tracking_comment_id"
   # Kill the tmux session — helper panes are useless without the loop
@@ -1721,6 +1835,11 @@ mkdir -p "$LOOM_DIR/logs"
 rm -f "$LOOM_DIR/.iteration_marker"
 debug "Stale sentinels cleaned. Entering main loop. MAX_ITERATIONS=$MAX_ITERATIONS"
 
+# ─── Initialize file locks (cross-PRD conflict detection) ───────
+init_file_lock_dir
+register_file_locks
+check_file_conflicts
+
 # ─── Initialize source tracking ─────────────────────────────────
 init_source_tracking
 
@@ -1762,6 +1881,10 @@ while [ "$ITERATION" -lt "$MAX_ITERATIONS" ]; do
     log "${CYAN}Steering instructions received${NC} (${#STEERING_CONTENT} chars)"
     debug "Steering consumed: ${#STEERING_CONTENT} chars, archived to logs/steering-iter${ITERATION}.md"
   fi
+
+  # ─── Refresh file locks (PRD statuses may have changed) ───
+  register_file_locks
+  check_file_conflicts
 
   # ─── Build prompt ───────────────────────────────────────────
   if [ -n "$DIRECTIVE_FILE" ]; then

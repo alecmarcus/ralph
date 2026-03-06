@@ -90,6 +90,14 @@ The `LOOM_CAPABILITIES` environment variable contains available capability categ
 - If all remaining actionable stories are tool-gated (require capabilities not in `LOOM_CAPABILITIES`), emit `LOOM_RESULT:DONE`.
 - Stories without a `tools` field or with `"tools": []` are always eligible.
 
+### Cross-PRD file conflict avoidance
+
+The `LOOM_LOCKED_FILES` environment variable contains a comma-separated list of file paths that are currently being modified by **other** concurrent Loom sessions on the same project. When selecting stories:
+
+- If a story's `files` array contains any path listed in `LOOM_LOCKED_FILES`, **skip** that story — leave it `pending`.
+- If all remaining actionable stories conflict with locked files, emit `LOOM_RESULT:DONE` and note in status.md that stories are blocked by file locks from other sessions.
+- Check this **before** parallelization decisions — two stories that don't conflict with each other may both conflict with a locked file.
+
 ### Provenance hierarchy enforcement
 
 When selecting stories, detect and block circular or retroactive provenance:
