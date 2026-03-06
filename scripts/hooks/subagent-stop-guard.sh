@@ -4,12 +4,21 @@
 # the orchestrator accepts its result. Only active in Loom loops.
 # ─────────────────────────────────────────────────────────────────
 
-# No-op outside Loom — require live .pid and non-interactive session
-_is_loom() { [ -f "$1/.pid" ] && kill -0 "$(cat "$1/.pid" 2>/dev/null)" 2>/dev/null; }
+# No-op outside Loom — verify this Claude session is a child of a loom loop
+_is_loom_child() {
+  local pid_file="$1/.pid" p
+  [ -f "$pid_file" ] || return 1
+  local loom_pid; loom_pid=$(cat "$pid_file" 2>/dev/null) || return 1
+  p=$PPID
+  while [ -n "$p" ] && [ "$p" != "1" ] && [ "$p" != "0" ]; do
+    [ "$p" = "$loom_pid" ] && return 0
+    p=$(ps -p "$p" -o ppid= 2>/dev/null | tr -d ' ')
+  done
+  return 1
+}
 LOOM_DIR="${PWD}/.loom"
-_is_loom "$LOOM_DIR" || LOOM_DIR="${CLAUDE_PROJECT_DIR:-.}/.loom"
-_is_loom "$LOOM_DIR" || exit 0
-[ -z "${CLAUDECODE:-}" ] || exit 0
+_is_loom_child "$LOOM_DIR" || LOOM_DIR="${CLAUDE_PROJECT_DIR:-.}/.loom"
+_is_loom_child "$LOOM_DIR" || exit 0
 
 # No enforcement in preview
 [ "$LOOM_PREVIEW" = "1" ] && exit 0
