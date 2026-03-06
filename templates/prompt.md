@@ -301,7 +301,7 @@ Each review subagent prompt must include:
    - **Provenance check:** Can every changed hunk trace to a specific requirement or decision? Flag untraceable changes.
    - **Thematic review:** Beyond the literal checklist, what architectural concern does the story point at? Consider whether the implementation addresses the underlying design intent, not just the surface requirements.
 8. **Every finding is a MUST FIX.** There is no "suggestion" or "learning" category. If the reviewer identifies it, it must be fixed. The only valid reason to skip a finding is if the orchestrator verifies it is **factually incorrect** (the reviewer misread the code or misunderstood the requirement). "Not worth fixing" is never a valid reason to skip.
-9. **No deferral.** Do not label findings as "out of scope", "pre-existing", "deferred", or "TODO". Before surfacing a finding, check whether it is already captured in the PRD (another story) or a tracked issue. If it is already tracked → do not surface it. If it is not tracked → it is an ISSUE and must be fixed now. The reviewer is responsible for this check — do not surface work that belongs to another story, and do not defer work that belongs to no story.
+9. **No deferral.** Do not label findings as "out of scope", "pre-existing", "deferred", or "TODO". Before surfacing a finding, check whether it is already captured in the PRD (another story) or a tracked issue. If it is already tracked → do not surface it. If it is not tracked → it is an ISSUE and must be fixed now. The reviewer is responsible for this check — do not surface work that belongs to another story or issue, and do not defer work that belongs to none.
 ```
 STORY: <story-id>
 CRITERIA:
