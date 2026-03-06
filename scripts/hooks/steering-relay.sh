@@ -25,8 +25,9 @@ ARCHIVE="$LOOM_DIR/logs/steering-$(date '+%Y%m%d-%H%M%S').md"
 mkdir -p "$LOOM_DIR/logs"
 mv "$STEERING_FILE" "$ARCHIVE" 2>/dev/null || exit 0
 
-# Inject steering as feedback via stderr — the agent sees this immediately
-cat >&2 <<EOF
+# Inject steering as feedback via stdout — PostToolUse hook stdout is
+# appended to the tool result, which the agent sees immediately.
+cat <<EOF
 
 OPERATOR STEERING (injected mid-iteration):
 
