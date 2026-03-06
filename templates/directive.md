@@ -151,6 +151,7 @@ The review subagent prompt must include:
    - **Provenance check:** Can every changed hunk trace to a specific directive requirement? Flag untraceable changes.
    - **Thematic review:** Beyond the literal checklist, what architectural concern does the directive point at? Consider whether the implementation addresses the underlying design intent, not just the surface requirements.
 7. **Every finding is a MUST FIX.** There is no "suggestion" or "non-blocking" category. If the reviewer identifies it, it must be fixed. The only valid reason to skip a finding is if the orchestrator verifies it is **factually incorrect** (the reviewer misread the code or misunderstood the requirement).
+   - **No deferral.** Do not label findings as "out of scope", "pre-existing", "deferred", or "TODO". Before surfacing a finding, check whether it is already captured in another tracked story or issue. If already tracked → do not surface it. If not tracked → it is an ISSUE and must be fixed now.
 8. Required structured output format:
 ```
 REVIEW_RESULT: PASS | FAIL
@@ -174,6 +175,8 @@ After launching the review subagent, **stop and wait**. Do not make any tool cal
 1. **Verify truthiness** — re-read the code the reviewer cited. Is the finding factually correct?
 2. If **factually incorrect** (the code is actually correct and the reviewer was wrong) → skip with an explicit note: `SKIPPED: <finding> — <why it's wrong>`
 3. If **correct or plausibly correct** → it must be fixed.
+
+**Forbidden skip reasons:** "out of scope", "pre-existing issue", "deferred", "TODO", "not important enough". None of these are valid. If the reviewer surfaced it and it's correct, fix it.
 
 - **PASS and no issues** → review complete, proceed to 3.5
 - **FAIL or any issues** → launch fix subagent below

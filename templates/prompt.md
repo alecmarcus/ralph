@@ -301,6 +301,7 @@ Each review subagent prompt must include:
    - **Provenance check:** Can every changed hunk trace to a specific requirement or decision? Flag untraceable changes.
    - **Thematic review:** Beyond the literal checklist, what architectural concern does the story point at? Consider whether the implementation addresses the underlying design intent, not just the surface requirements.
 8. **Every finding is a MUST FIX.** There is no "suggestion" or "learning" category. If the reviewer identifies it, it must be fixed. The only valid reason to skip a finding is if the orchestrator verifies it is **factually incorrect** (the reviewer misread the code or misunderstood the requirement). "Not worth fixing" is never a valid reason to skip.
+9. **No deferral.** Do not label findings as "out of scope", "pre-existing", "deferred", or "TODO". Before surfacing a finding, check whether it is already captured in the PRD (another story) or a tracked issue. If it is already tracked → do not surface it. If it is not tracked → it is an ISSUE and must be fixed now. The reviewer is responsible for this check — do not surface work that belongs to another story, and do not defer work that belongs to no story.
 ```
 STORY: <story-id>
 CRITERIA:
@@ -321,7 +322,9 @@ After launching all review subagents, **stop and wait**. Do not make any tool ca
 
 1. **Verify truthiness** — re-read the code the reviewer cited. Is the finding factually correct? Did the reviewer misread the code or misunderstand the requirement?
 2. If **factually incorrect** (the code is actually correct and the reviewer was wrong) → skip it with an explicit note: `SKIPPED: <finding> — <why it's wrong>`
-3. If **correct or plausibly correct** → it must be fixed. "Not important enough" is not a valid reason to skip.
+3. If **correct or plausibly correct** → it must be fixed.
+
+**Forbidden skip reasons:** "out of scope", "pre-existing issue", "deferred to future iteration", "TODO", "not important enough". None of these are valid. If the reviewer surfaced it and it's correct, fix it.
 
 **Fix process:**
 
