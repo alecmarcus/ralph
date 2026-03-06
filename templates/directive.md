@@ -35,7 +35,7 @@ Read `.loom/status.md`. Note any failing tests or uncommitted changes from a pre
 
 Use subagents (Task tool) to parallelize independent pieces of work where possible. Assign one distinct unit of work per subagent. Each subagent prompt **must** include:
 
-1. The assigned unit of work — clear, unambiguous instructions.
+1. The assigned unit of work — clear, unambiguous instructions. **Implement to full completion** — no stubs, shells, placeholders, in-memory-only implementations, `// TODO` markers, or partial work. Every requirement must be satisfied with production-ready code. If the directive says "persist to database", persist to the actual database. If it says "call the API", call the real API. Anything less than full implementation is a failed delivery.
 2. A reminder to **read all source documents in full** before writing any code. If the directive references specs, ADRs, or external artifacts, the subagent must read them line by line — not skim or excerpt. Note which sections informed each decision.
 3. A reminder to **cite sources in commit messages** — every non-trivial implementation choice must reference the source document and section that drove it. Note judgment calls explicitly.
 4. A reminder to **search the codebase before assuming something is missing** — don't reimplement what already exists.
@@ -247,6 +247,7 @@ Overwrite `.loom/status.md` with a fresh report:
 
 ## Rules
 
+- **Full completion only.** Stubs, shells, placeholder implementations, in-memory-only backends, hardcoded mocks, `// TODO` comments, and partial requirements are all unacceptable. Every piece of work must be implemented to production readiness. If work cannot be completed in one pass, emit `LOOM_RESULT:PARTIAL` — do not emit `SUCCESS` or `DONE` with incomplete code.
 - **Search before assuming.** Always search the codebase before concluding something is missing or needs to be built.
 - **Only commit green code.** Never commit if tests are failing. Leave changes uncommitted for the next iteration.
 - **Do NOT read or modify the PRD file unless you were explicitly told to.** This is directive mode, and your focus is only on what you were told to do.

@@ -141,7 +141,7 @@ Assign **exactly one story (or one test-fix)** per subagent. Launch **all** suba
 Each subagent prompt **must** include:
 
 1. The full story object (id, title, description, acceptanceCriteria, files, sources, details) — or the full failing-test details.
-2. Clear, unambiguous instructions: implement the feature / fix the test.
+2. Clear, unambiguous instructions: implement the feature / fix the test. **Implement to full completion** — no stubs, shells, placeholders, in-memory-only implementations, `// TODO` markers, or partial acceptance criteria. Every acceptance criterion must be satisfied with production-ready code. If a story says "persist to database", persist to the actual database. If it says "call the API", call the real API. Anything less than full implementation is a failed delivery.
 3. A reminder to write clean, minimal code — no over-engineering.
 4. A reminder to **search the codebase before assuming something is missing** — don't reimplement what already exists.
 5. A reminder to **only implement the assigned story** — do not "fix" existing code that seems inconsistent with other specs.
@@ -408,6 +408,7 @@ Overwrite `.loom/status.md` with a fresh report containing:
 - **Closed stories are not to be revisited.** Never read or act on stories with any status other than `"pending"` or `"in_progress"`. You may only reference them as sources or prior work.
 - **Source backlinks are the source of truth.** When a story has a `sources` array, the referenced files and sections are the authoritative specification. If the story's fields conflict with or are less detailed than the source documents, follow the source. Subagents should read the referenced source file when available. As such, stories and sources should be kept in sync.
 - **One story per subagent.** No exceptions.
+- **Full completion only.** Stubs, shells, placeholder implementations, in-memory-only backends, hardcoded mocks, `// TODO` comments, and partial acceptance criteria are all unacceptable. Every story must be implemented to production readiness. If work cannot be completed in one pass, mark it `in_progress` with a clear `result` — do not mark it `done` with incomplete code.
 - **Search before assuming.** Always search the codebase before concluding something is missing or needs to be built.
 - **Only commit green code.** Never commit if tests are failing. Leave changes uncommitted for the next iteration.
 - **Always use `jq` to read the PRD file.** Never cat/read the whole file at once.
