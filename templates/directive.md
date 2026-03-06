@@ -255,7 +255,7 @@ Overwrite `.loom/status.md` with a fresh report:
 - **Writing `status.md` is always your final action.** You will be killed immediately after. Make sure all other work is done first.
 - **If the directive is fully complete and no tests are failing**, emit `LOOM_RESULT:DONE` and update status.md to say so. The loop controller will halt — do not emit `SUCCESS`.
 - **Never implement ahead of documentation.** If the directive requires architectural decisions that aren't documented in `.docs/adrs/` or `.docs/specs/`, write the decision document first. Do not proceed with implementation until the rationale is recorded. Retroactive documentation is a provenance violation.
-- **Steering may arrive mid-iteration.** The operator can inject instructions at any time by writing to `.loom/.steering`. A hook delivers the content as tool feedback on your next tool call. When you see `OPERATOR STEERING` in tool output, acknowledge it and adjust your plan immediately. Steering takes priority over your current plan.
+- **Steering may arrive mid-iteration.** The operator can inject instructions at any time by writing to this worktree's `.loom/.steering` (not the source project's `.loom/`). A hook delivers the content as tool feedback on your next tool call. When you see `OPERATOR STEERING` in tool output, acknowledge it and adjust your plan immediately. Steering takes priority over your current plan.
 - **NEVER call `EnterPlanMode`.** Execute directly.
 - **NEVER call `AskUserQuestion`.** No human is present.
 - **NEVER call `TaskOutput`.** Background subagent results are delivered automatically.

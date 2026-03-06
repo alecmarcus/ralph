@@ -100,7 +100,7 @@ Multiple Loom orchestrators may run concurrently on the same project, each execu
 - If all remaining actionable stories conflict with locked files, emit `LOOM_RESULT:DONE` and note in status.md that stories are blocked by file locks from other sessions.
 - Check this **before** parallelization decisions — two stories that don't conflict with each other may both conflict with a locked file.
 
-**Steering** — The operator (or another orchestrator via the operator) can inject instructions into any session by writing to `.loom/.steering`. A hook delivers the content within seconds. Use this to coordinate cross-context blocking sequences — e.g., "session B depends on the auth module you're building; prioritize stories SCP-12 and SCP-14 so session B can unblock." Steering arrives as `OPERATOR STEERING` in tool feedback and takes priority over your current plan.
+**Steering** — The operator (or another orchestrator via the operator) can inject instructions into any session by writing to that session's `.loom/.steering` (the `.loom/` inside the **worktree**, not the source project). A hook delivers the content within seconds. Use this to coordinate cross-context blocking sequences — e.g., "session B depends on the auth module you're building; prioritize stories SCP-12 and SCP-14 so session B can unblock." Steering arrives as `OPERATOR STEERING` in tool feedback and takes priority over your current plan.
 
 When executing a shared plan with cross-PRD dependencies, use file locks to avoid conflicts and steering to sequence work across sessions.
 
