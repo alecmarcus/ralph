@@ -145,8 +145,24 @@ Parse both values from the output. Report the session name and control commands:
   - Attach to monitor: `tmux attach -t <session-name>`
   - Kill the loop: `tmux kill-session -t <session-name>`
   - Stop gracefully: `touch <loom-dir>/.stop`
+  - Steer mid-iteration: `printf '%s' "<instructions>" > <loom-dir>/.steering`
 
 Do **not** fabricate a session name or loom dir. Only use what the script actually outputs.
+
+## Steering
+
+The user can steer a running Loom session at any time by asking you to write instructions to `<loom-dir>/.steering`. A PostToolUse hook checks for this file on every tool call the agent makes, so the agent sees the steering within seconds.
+
+```bash
+printf '%s' "Focus on the auth module first, skip the UI stories for now" > <loom-dir>/.steering
+```
+
+The file is consumed (archived to `<loom-dir>/logs/`) after delivery. The agent sees it as `OPERATOR STEERING` in its tool feedback and adjusts immediately.
+
+Use this when:
+- The user wants to redirect the loop's priorities mid-iteration
+- The user wants to inject context the agent doesn't have (e.g., "the CI is broken, don't push")
+- The user wants to course-correct a subagent strategy
 
 ## Iteration watcher relay
 

@@ -42,6 +42,9 @@ Use subagents (Task tool) to parallelize independent pieces of work where possib
 5. A reminder to **only implement the assigned work** — do not "fix" existing code that seems inconsistent with other specs.
 6. A reminder to **update documentation** — if the work changes project-wide patterns, APIs, or conventions, update root `.docs/` and/or `CLAUDE.md`. Skip for trivial changes.
 7. A reminder to **search Vestige** for patterns relevant to the assigned work before coding: `mcp__vestige__search(query: "<project-name> <domain> patterns gotchas")`. Agents that query memory before implementing make better decisions.
+8. If `LOOM_SOURCE_TYPE` and `LOOM_SOURCE_REF` environment variables are set, include them in the subagent prompt. Tell the subagent to **post a brief completion comment** to the source when it finishes — include a one-line summary and the commit hash. For GitHub: `gh issue comment $LOOM_SOURCE_REF --body "<update>"`. For Linear: use MCP tools.
+
+**Source progress update:** After dispatching subagents, if `LOOM_SOURCE_TYPE` and `LOOM_SOURCE_REF` are set, post a progress update to the source listing what work is in progress. For GitHub: `gh issue comment $LOOM_SOURCE_REF --body "Working on: <summary>"`. For Linear: use MCP tools.
 
 ### Visual verification
 
@@ -82,6 +85,15 @@ Check if the work done this iteration warrants documentation updates:
 - **Feature-scoped `.docs/` and `CLAUDE.md`** — if you worked in a feature directory (e.g. `src/auth/`, `lib/transport/`), create or update a `.docs/` directory and/or `CLAUDE.md` there with usage notes, constraints, and gotchas specific to that feature.
 
 Keep docs concise and practical. Skip if the work was trivial.
+
+### 3.3b — Update Remote Sources
+
+Check the `LOOM_SOURCE_TYPE` and `LOOM_SOURCE_REF` environment variables. If set, post a progress update to the source:
+
+- **GitHub**: `gh issue comment $LOOM_SOURCE_REF --body "<update>"`. Include commit hashes and a summary of work done this iteration.
+- **Linear**: Use Linear MCP tools to add a comment to the ticket.
+- If the directive is partially complete, explain what was done and what remains.
+- If fully complete, summarize the resolution.
 
 ### 3.4 — Review Phase
 
@@ -238,6 +250,7 @@ Overwrite `.loom/status.md` with a fresh report:
 - **Writing `status.md` is always your final action.** You will be killed immediately after. Make sure all other work is done first.
 - **If the directive is fully complete and no tests are failing**, emit `LOOM_RESULT:DONE` and update status.md to say so. The loop controller will halt — do not emit `SUCCESS`.
 - **Never implement ahead of documentation.** If the directive requires architectural decisions that aren't documented in `.docs/adrs/` or `.docs/specs/`, write the decision document first. Do not proceed with implementation until the rationale is recorded. Retroactive documentation is a provenance violation.
+- **Steering may arrive mid-iteration.** The operator can inject instructions at any time by writing to `.loom/.steering`. A hook delivers the content as tool feedback on your next tool call. When you see `OPERATOR STEERING` in tool output, acknowledge it and adjust your plan immediately. Steering takes priority over your current plan.
 - **NEVER call `EnterPlanMode`.** Execute directly.
 - **NEVER call `AskUserQuestion`.** No human is present.
 - **NEVER call `TaskOutput`.** Background subagent results are delivered automatically.

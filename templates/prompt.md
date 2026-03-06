@@ -120,10 +120,13 @@ Each subagent prompt **must** include:
 7. **Maintain a provenance trail** — every non-trivial implementation choice must reference the source document and section that drove it (e.g., `spec.md:45-52`, `ADR-003:rationale`) in commit messages. Note judgment calls explicitly: when the source is ambiguous or silent and the subagent makes a discretionary choice, document it as such.
 8. If the story has a non-empty `tools` array, tell the subagent which capabilities are available and instruct them to: **write test files** for visual/interaction acceptance criteria using the project's test framework (Playwright tests, Detox/Maestro tests, etc.) as durable verification, and **use MCP tools ad-hoc** during implementation to screenshot, inspect, and debug visual changes before committing. Don't hardcode specific MCP API calls — let the subagent discover available tools via `ListMcpResourcesTool`.
 9. A reminder to **update documentation** — if the story changes project-wide patterns, APIs, or conventions, update root `.docs/` and/or `CLAUDE.md`. If it adds or changes a feature area, create or update a `.docs/` directory and/or `CLAUDE.md` in the relevant feature directory with usage notes, constraints, and gotchas that aren't obvious from code alone. Skip for trivial changes.
+10. If `LOOM_SOURCE_TYPE` and `LOOM_SOURCE_REF` environment variables are set, include them in the subagent prompt. Tell the subagent to **post a brief completion comment** to the source when it finishes — include the story ID, a one-line summary, and the commit hash. For GitHub: `gh issue comment $LOOM_SOURCE_REF --body "<update>"`. For Linear: use MCP tools.
 
 Do **not** combine multiple stories into a single subagent.
 
 **Before dispatching**, search Vestige for patterns relevant to each story's domain: `mcp__vestige__search(query: "<project-name> <story-domain> patterns gotchas")`. If results are relevant, include them as additional context in the subagent prompt — e.g., before dispatching a story about auth, search `"auth patterns gotchas <project>"` and pass any relevant memories so subagents benefit from prior iterations' learnings.
+
+**Source progress update:** Before waiting, if `LOOM_SOURCE_TYPE` and `LOOM_SOURCE_REF` environment variables are set, post a brief progress update to the source listing which stories are being worked on this iteration. For GitHub: `gh issue comment $LOOM_SOURCE_REF --body "Iteration N: working on stories X, Y, Z"`. For Linear: use MCP tools to comment on the ticket.
 
 After launching all subagents, **stop and wait**. Do not make any tool calls. Do not poll with Bash. Do not check git status, read files, or monitor progress. Subagent results are delivered to you automatically when each one completes. You will receive them without doing anything.
 
@@ -181,12 +184,16 @@ Use `jq` or targeted edits — do not rewrite the entire file.
 
 ### 4.3 — Update Remote Sources
 
-If there are remote sources, such as linear or github tickets:
-- Use relevant tools to update the status accordingly
-- Reference the specific commit hash and story-ID that pertain to the ticket and its update
-- If updating to an intermediate status, explain in detail what progress has been made so far and what progress remains, including references to sources and commit hashes
-- If resolving, explain how it was resolved/fixed
-- If closing/cancelling without resolution, justify the closure and explain why in great detail, including references to sources that you used to reach your decision
+Check the `LOOM_SOURCE_TYPE` and `LOOM_SOURCE_REF` environment variables. If set, they identify the originating issue/ticket (e.g., `github` + `42`, or `linear` + `SCP-142`). Also check if the directive references remote sources like Linear or GitHub tickets.
+
+Post a **completion update** to the source:
+
+- **GitHub**: `gh issue comment $LOOM_SOURCE_REF --body "<update>"`. Include commit hashes, story IDs completed, and a summary of work done.
+- **Linear**: Use Linear MCP tools to add a comment to the ticket.
+- Reference the specific commit hash and story-ID that pertain to the ticket and its update.
+- If updating to an intermediate status, explain in detail what progress has been made so far and what progress remains, including references to sources and commit hashes.
+- If resolving, explain how it was resolved/fixed.
+- If closing/cancelling without resolution, justify the closure and explain why in great detail, including references to sources that you used to reach your decision.
 
 ### 4.4 — Commit (only if tests pass)
 
@@ -391,6 +398,7 @@ Overwrite `.loom/status.md` with a fresh report containing:
 - **Vestige is your long-term memory across iterations.** Store patterns, decisions, and gotchas — not progress updates.
 - **Writing `status.md` is always your final action.** You will be killed immediately after. Make sure all other work is done first.
 - **If no actionable stories remain and no tests are failing**, emit `LOOM_RESULT:DONE` and update status.md to say so. The loop controller will halt — do not emit `SUCCESS`.
+- **Steering may arrive mid-iteration.** The operator can inject instructions at any time by writing to `.loom/.steering`. A hook delivers the content as tool feedback on your next tool call. When you see `OPERATOR STEERING` in tool output, acknowledge it and adjust your plan immediately. Steering takes priority over your current plan.
 - **NEVER call `EnterPlanMode`.** Execute directly.
 - **NEVER call `AskUserQuestion`.** No human is present.
 - **NEVER call `TaskOutput`.** Subagents run with `isolation: "worktree"` — their branch names and results are delivered automatically when they complete. Calling `TaskOutput` before all subagents finish risks interrupting still-running agents. This is also enforced by a hook that will block any `TaskOutput` call.

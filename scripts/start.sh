@@ -1085,6 +1085,217 @@ notify() {
   fi
 }
 
+# ─── Source Reference Extraction ─────────────────────────────────
+# Parses SOURCES_* variables into machine-readable type+ref for
+# env export and tracking comment management.
+extract_source_ref() {
+  LOOM_SOURCE_TYPE=""
+  LOOM_SOURCE_REF=""
+
+  if [ -n "$SOURCES_GITHUB" ]; then
+    LOOM_SOURCE_TYPE="github"
+    if [[ "$SOURCES_GITHUB" =~ ^[0-9]+$ ]]; then
+      LOOM_SOURCE_REF="$SOURCES_GITHUB"
+    elif [[ "$SOURCES_GITHUB" =~ /issues/([0-9]+) ]]; then
+      LOOM_SOURCE_REF="${BASH_REMATCH[1]}"
+    elif [[ "$SOURCES_GITHUB" =~ /pull/([0-9]+) ]]; then
+      LOOM_SOURCE_TYPE="github-pr"
+      LOOM_SOURCE_REF="${BASH_REMATCH[1]}"
+    else
+      LOOM_SOURCE_REF="$SOURCES_GITHUB"
+    fi
+  elif [ -n "$SOURCES_LINEAR" ]; then
+    LOOM_SOURCE_TYPE="linear"
+    if [[ "$SOURCES_LINEAR" =~ ([A-Za-z]+-[0-9]+) ]]; then
+      LOOM_SOURCE_REF="${BASH_REMATCH[1]}"
+    else
+      LOOM_SOURCE_REF="$SOURCES_LINEAR"
+    fi
+  fi
+
+  export LOOM_SOURCE_TYPE LOOM_SOURCE_REF
+  debug "extract_source_ref: type=$LOOM_SOURCE_TYPE ref=$LOOM_SOURCE_REF"
+}
+
+# ─── Source Tracking (GitHub issue/PR comment) ───────────────────
+# Creates a single tracking comment on the source issue/PR, then
+# updates it after each iteration with current status. Gives
+# stakeholders live visibility into Loom progress.
+LOOM_TRACKING_COMMENT_ID=""
+LOOM_GH_REPO=""
+
+# Resolve and cache the GitHub repo (owner/name) for API calls.
+# Returns 1 if gh is unavailable or repo can't be resolved.
+resolve_gh_repo() {
+  [ -n "$LOOM_GH_REPO" ] && return 0
+  command -v gh &>/dev/null || return 1
+  LOOM_GH_REPO=$(gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null) || return 1
+  [ -n "$LOOM_GH_REPO" ] || return 1
+  debug "resolve_gh_repo: $LOOM_GH_REPO"
+  return 0
+}
+
+# Wrapper for gh api with timeout and error logging.
+# Usage: gh_api [args...] — returns gh exit code.
+gh_api() {
+  local timeout_pfx=""
+  if [ -n "$TIMEOUT_CMD" ]; then
+    timeout_pfx="$TIMEOUT_CMD 30"
+  fi
+  local output exit_code
+  output=$($timeout_pfx gh api "$@" 2>&1)
+  exit_code=$?
+  if [ $exit_code -ne 0 ]; then
+    debug "gh_api FAILED (exit=$exit_code): gh api $*"
+    debug "  output: $(echo "$output" | head -5)"
+    echo "$output" >> "$LOG_FILE" 2>/dev/null || true
+  else
+    echo "$output"
+  fi
+  return $exit_code
+}
+
+# Truncate status.md for embedding in GitHub comments (max ~4000 chars
+# to stay well under GitHub's 65536 char comment limit).
+read_status_excerpt() {
+  [ -f "$LOOM_DIR/status.md" ] || return
+  head -c 4000 "$LOOM_DIR/status.md"
+}
+
+init_source_tracking() {
+  [ -z "$LOOM_SOURCE_TYPE" ] && return 0
+
+  # Resume: reuse existing tracking comment
+  if [ -f "$LOOM_DIR/.tracking_comment_id" ]; then
+    LOOM_TRACKING_COMMENT_ID=$(cat "$LOOM_DIR/.tracking_comment_id")
+    debug "Reusing tracking comment ID: $LOOM_TRACKING_COMMENT_ID"
+    return 0
+  fi
+
+  case "$LOOM_SOURCE_TYPE" in
+    github|github-pr)
+      [[ "$LOOM_SOURCE_REF" =~ ^[0-9]+$ ]] || return 0
+      resolve_gh_repo || return 0
+
+      local branch="${WORKTREE_BRANCH:-$(git -C "$PROJECT_DIR" branch --show-current 2>/dev/null)}"
+      local body
+      body="## Loom — Working
+
+| | |
+|---|---|
+| **Branch** | \`${branch}\` |
+| **Status** | Starting |
+| **Iteration** | 0 / $MAX_ITERATIONS |
+| **Mode** | $MODE_LABEL |
+| **Started** | $(date -u '+%Y-%m-%dT%H:%M:%SZ') |
+
+_Updated automatically by Loom. Last update: $(date -u '+%Y-%m-%dT%H:%M:%SZ')_"
+
+      local comment_id
+      comment_id=$(gh_api "repos/$LOOM_GH_REPO/issues/$LOOM_SOURCE_REF/comments" \
+        -f body="$body" --jq '.id') || return 0
+
+      if [ -n "$comment_id" ]; then
+        LOOM_TRACKING_COMMENT_ID="$comment_id"
+        echo "$comment_id" > "$LOOM_DIR/.tracking_comment_id"
+        log "${CYAN}Tracking comment posted to #$LOOM_SOURCE_REF${NC}"
+        debug "Tracking comment created: ID=$comment_id"
+      fi
+      ;;
+  esac
+}
+
+update_source_tracking() {
+  local iter="$1" signal="$2" duration="$3" subagents="$4"
+  [ -z "$LOOM_SOURCE_TYPE" ] && return 0
+  [ -z "$LOOM_TRACKING_COMMENT_ID" ] && return 0
+
+  case "$LOOM_SOURCE_TYPE" in
+    github|github-pr)
+      resolve_gh_repo || return 0
+
+      local status_icon="working"
+      case "$signal" in
+        SUCCESS) status_icon="Iteration passed" ;;
+        DONE)    status_icon="Complete" ;;
+        PARTIAL) status_icon="Partial progress" ;;
+        FAILED)  status_icon="Iteration failed" ;;
+      esac
+
+      local mins=$((duration / 60))
+      local secs=$((duration % 60))
+
+      local summary
+      summary=$(read_status_excerpt)
+
+      local branch="${WORKTREE_BRANCH:-$(git -C "$PROJECT_DIR" branch --show-current 2>/dev/null)}"
+      local body
+      body="## Loom — Working
+
+| | |
+|---|---|
+| **Branch** | \`${branch}\` |
+| **Status** | $status_icon |
+| **Iteration** | $iter / $MAX_ITERATIONS |
+| **Last Duration** | ${mins}m ${secs}s |
+| **Subagents** | $subagents |
+| **Mode** | $MODE_LABEL |
+
+<details>
+<summary>Latest status</summary>
+
+$summary
+</details>
+
+_Updated automatically by Loom. Last update: $(date -u '+%Y-%m-%dT%H:%M:%SZ')_"
+
+      gh_api "repos/$LOOM_GH_REPO/issues/comments/$LOOM_TRACKING_COMMENT_ID" \
+        -X PATCH -f body="$body" > /dev/null || true
+      debug "Tracking comment updated: iter=$iter signal=$signal"
+      ;;
+  esac
+}
+
+finalize_source_tracking() {
+  local total_iters="$1" final_status="$2"
+  [ -z "$LOOM_SOURCE_TYPE" ] && return 0
+  [ -z "$LOOM_TRACKING_COMMENT_ID" ] && return 0
+
+  case "$LOOM_SOURCE_TYPE" in
+    github|github-pr)
+      resolve_gh_repo || return 0
+
+      local summary
+      summary=$(read_status_excerpt)
+
+      local branch="${WORKTREE_BRANCH:-$(git -C "$PROJECT_DIR" branch --show-current 2>/dev/null)}"
+      local body
+      body="## Loom — Complete
+
+| | |
+|---|---|
+| **Branch** | \`${branch}\` |
+| **Status** | $final_status |
+| **Iterations** | $total_iters |
+| **Mode** | $MODE_LABEL |
+
+<details>
+<summary>Final status</summary>
+
+$summary
+</details>
+
+_Completed $(date -u '+%Y-%m-%dT%H:%M:%SZ')_"
+
+      gh_api "repos/$LOOM_GH_REPO/issues/comments/$LOOM_TRACKING_COMMENT_ID" \
+        -X PATCH -f body="$body" > /dev/null || true
+
+      rm -f "$LOOM_DIR/.tracking_comment_id"
+      debug "Tracking comment finalized: iters=$total_iters status=$final_status"
+      ;;
+  esac
+}
+
 # ─── Preflight ───────────────────────────────────────────────────
 if ! command -v claude &>/dev/null; then
   die "claude CLI not found in PATH"
@@ -1144,7 +1355,7 @@ cleanup() {
     debug "  skipping create_pr (ITERATION=0)"
   fi
   debug "  removing sentinels"
-  rm -f "$LOOM_DIR/.directive" "$LOOM_DIR"/.directive-* "$LOOM_DIR/.piped_directive" "$LOOM_DIR"/.piped_directive-* "$LOOM_DIR/.iteration_marker" "$LOOM_DIR/.stop" "$LOOM_DIR/.pid" "$LOOM_DIR/.iter_state" "$LOOM_DIR/.header-pane.sh"
+  rm -f "$LOOM_DIR/.directive" "$LOOM_DIR"/.directive-* "$LOOM_DIR/.piped_directive" "$LOOM_DIR"/.piped_directive-* "$LOOM_DIR/.iteration_marker" "$LOOM_DIR/.stop" "$LOOM_DIR/.pid" "$LOOM_DIR/.iter_state" "$LOOM_DIR/.header-pane.sh" "$LOOM_DIR/.steering" "$LOOM_DIR/.tracking_comment_id"
   # Kill the tmux session — helper panes are useless without the loop
   if [ -n "${TMUX_SESSION:-}" ]; then
     debug "  killing tmux session '$TMUX_SESSION'"
@@ -1284,6 +1495,9 @@ MODE_LABEL=""
 [ -n "$SOURCES_PROMPT" ] && MODE_LABEL="${MODE_LABEL:+$MODE_LABEL+}prompt"
 [ -n "$SOURCES_PIPED" ]  && MODE_LABEL="${MODE_LABEL:+$MODE_LABEL+}prompt"
 MODE_LABEL="${MODE_LABEL:-prd}"
+
+# ─── Source Reference Extraction ─────────────────────────────────
+extract_source_ref
 
 # ─── Tmux Launch ─────────────────────────────────────────────────
 if $USE_TMUX; then
@@ -1507,6 +1721,9 @@ mkdir -p "$LOOM_DIR/logs"
 rm -f "$LOOM_DIR/.iteration_marker"
 debug "Stale sentinels cleaned. Entering main loop. MAX_ITERATIONS=$MAX_ITERATIONS"
 
+# ─── Initialize source tracking ─────────────────────────────────
+init_source_tracking
+
 # ─── Main Loop ───────────────────────────────────────────────────
 ITERATION=0
 
@@ -1536,6 +1753,16 @@ while [ "$ITERATION" -lt "$MAX_ITERATIONS" ]; do
   log "${BOLD}Iteration $ITERATION${NC} (failures: $CONSECUTIVE_FAILURES/$MAX_FAILURES)"
   separator
 
+  # ─── Steering: check for parent-injected instructions ──
+  STEERING_CONTENT=""
+  if [ -f "$LOOM_DIR/.steering" ]; then
+    STEERING_CONTENT="$(cat "$LOOM_DIR/.steering")"
+    mkdir -p "$LOOM_DIR/logs"
+    mv "$LOOM_DIR/.steering" "$LOOM_DIR/logs/steering-iter${ITERATION}.md"
+    log "${CYAN}Steering instructions received${NC} (${#STEERING_CONTENT} chars)"
+    debug "Steering consumed: ${#STEERING_CONTENT} chars, archived to logs/steering-iter${ITERATION}.md"
+  fi
+
   # ─── Build prompt ───────────────────────────────────────────
   if [ -n "$DIRECTIVE_FILE" ]; then
     # Directive mode: read template, split on {{DIRECTIVE}} marker,
@@ -1557,6 +1784,23 @@ while [ "$ITERATION" -lt "$MAX_ITERATIONS" ]; do
   # bash 3.2 errors on `local` outside functions, fatal under set -e.
   current_branch="$(git -C "$PROJECT_DIR" branch --show-current 2>/dev/null || echo "unknown")"
   PROMPT="${PROMPT//\{\{CURRENT_BRANCH\}\}/$current_branch}"
+
+  # ─── Inject steering from parent context ──
+  if [ -n "$STEERING_CONTENT" ]; then
+    STEERING_BLOCK="---
+
+## Operator Steering
+
+The following instructions were injected by the operator between iterations. These take priority over default story selection and execution order:
+
+$STEERING_CONTENT
+
+"
+    # Insert before Step 2 in both prompt.md and directive.md
+    # NOTE: # must be escaped in bash parameter expansion patterns (# is a glob anchor)
+    PROMPT="${PROMPT/\#\# Step 2/${STEERING_BLOCK}## Step 2}"
+    debug "Steering injected into prompt (${#STEERING_CONTENT} chars)"
+  fi
 
   # ─── Iteration marker for stop-guard hook ──
   touch "$LOOM_DIR/.iteration_marker"
@@ -1772,6 +2016,9 @@ PREVIEWEOF
   notify "Loom — Iter $ITERATION" "$RESULT_SIGNAL (${ITER_MINS}m ${ITER_SECS}s, $SUBAGENT_COUNT subagents)"
   debug "notify sent"
 
+  # ─── Update source tracking comment ──
+  update_source_tracking "$ITERATION" "$RESULT_SIGNAL" "$ITER_DURATION" "$SUBAGENT_COUNT"
+
   # ─── Done: no remaining work ──
   if [ "$RESULT_SIGNAL" = "DONE" ]; then
     debug "BREAK: RESULT_SIGNAL=DONE — all work complete"
@@ -1838,3 +2085,6 @@ if ! $PREVIEW && [ "$ITERATION" -ge "$MAX_ITERATIONS" ]; then
   master_log "$ITERATION" "$MODE_LABEL" "MAX_ITER" "0" "Reached max iterations" "0"
   notify "Loom — Max Iterations" "Completed $MAX_ITERATIONS iterations."
 fi
+
+# ─── Finalize source tracking ────────────────────────────────────
+finalize_source_tracking "$ITERATION" "${RESULT_SIGNAL:-UNKNOWN}"

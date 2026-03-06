@@ -30,6 +30,9 @@
     ],
     "PostToolUse": [
       {
+        "hooks": [{ "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/steering-relay.sh" }]
+      },
+      {
         "matcher": "Write",
         "hooks": [
           { "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/status-kill.sh" },
