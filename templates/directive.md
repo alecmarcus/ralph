@@ -91,11 +91,12 @@ Keep docs concise and practical. Skip if the work was trivial.
 
 ### 3.3b — Update Remote Sources
 
-Check the `LOOM_SOURCE_TYPE` and `LOOM_SOURCE_REF` environment variables. If set, post a progress update to the source:
+Check the `LOOM_SOURCE_TYPE` and `LOOM_SOURCE_REF` environment variables. If set, **update both the comment and the status** on the source:
 
-- **GitHub**: `gh issue comment $LOOM_SOURCE_REF --body "<update>"`. Include commit hashes and a summary of work done this iteration.
-- **Linear**: Use Linear MCP tools to add a comment to the ticket.
-- If the directive is partially complete, explain what was done and what remains.
+- **GitHub**: Post a comment (`gh issue comment`) **and** update the issue state if appropriate. If the directive is fully complete, close the issue: `gh issue close $LOOM_SOURCE_REF --comment "<resolution>"`. If in progress, leave open but comment with progress.
+- **Linear**: Use Linear MCP tools to comment **and** update the ticket status.
+- Reference specific commit hashes in every update.
+- If partially complete, explain what was done and what remains.
 - If fully complete, summarize the resolution.
 
 ### 3.4 — Review Phase
@@ -211,7 +212,14 @@ Use Vestige to store any operational learnings from this iteration:
 
 Only store things that would be **useful to a future iteration with no memory of this one**. Don't store routine progress — that's what status.md is for.
 
-### 3.6 — Emit Result Signal (MANDATORY)
+### 3.6 — Reconcile Statuses
+
+Before emitting the result signal, verify all statuses are accurate:
+
+1. **Remote sources** — if `LOOM_SOURCE_TYPE`/`LOOM_SOURCE_REF` are set, confirm you posted updates in 3.3b. If you skipped any, post them now.
+2. **Result signal alignment** — the signal you're about to emit must match reality. If work is incomplete, do not emit `SUCCESS` or `DONE`. If the directive is fully complete, do not emit `PARTIAL`.
+
+### 3.7 — Emit Result Signal (MANDATORY)
 
 **You MUST print one of these exact lines as visible output before writing status.md.** The loop controller parses your stdout for this signal. If you skip it, the iteration is recorded as UNKNOWN.
 
@@ -231,7 +239,7 @@ LOOM_RESULT:DONE
 
 **You MUST print one of these exact lines as visible output before writing status.md.** Print one of these lines verbatim — no markdown, no formatting, no wrapping, just the raw text on its own line.
 
-### 3.7 — Update Status (LAST STEP — triggers loop restart)
+### 3.8 — Update Status (LAST STEP — triggers loop restart)
 
 **This must be the final file you write.** Writing to `status.md` signals the loop controller that the iteration is complete. You will be terminated immediately after this write. Ensure all commits and memory storage are done before this step.
 

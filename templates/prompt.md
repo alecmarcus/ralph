@@ -203,29 +203,43 @@ Create or update test files as needed for the work done this iteration, then **r
 
 If tests fail, **fix them now**. Re-run the suite. Repeat until all tests pass or you've made 3 fix attempts. Do not move to 4.2 until tests are green or you've exhausted attempts.
 
-### 4.2 — Update PRD
+### 4.2 — Update PRD (every story touched this iteration)
 
-Update `{{PRD_FILE}}`:
+**Every story dispatched this iteration must have its status updated to reflect reality.** This is not optional — inaccurate PRD statuses cause the next iteration to re-dispatch completed work or skip failed work.
 
-- Set completed stories to `"status": "done"`.
-- Record a short outcome in the story's `"result"` field (add the field if absent).
-- If a story is partially done, keep it `"in_progress"` and note progress in `"result"`.
-- If new blockers surfaced, set `"status": "blocked"` and update `blockedBy`.
+Update `{{PRD_FILE}}` for **each** story that was worked on:
+
+- **Fully completed** (all acceptance criteria met, tests pass, code committed) → `"status": "done"`. Record a short outcome in the story's `"result"` field (add the field if absent).
+- **Partially completed** (some criteria met, some not) → keep `"status": "in_progress"`. Note what was done and what remains in `"result"`.
+- **Failed** (subagent failed, merge conflict lost the work, tests never passed) → set `"status": "pending"` (so it gets retried). Explain the failure in `"result"`.
+- **Blocked** (new blockers surfaced) → set `"status": "blocked"` and update `blockedBy`.
+
+**Do not mark a story `"done"` unless every acceptance criterion is satisfied.** A story with 4 of 5 criteria met is `"in_progress"`, not `"done"`.
+
+**Update gate statuses** — after updating stories, check each gate that contains stories touched this iteration:
+
+```bash
+jq '.gates[] | select(.stories[] as $s | .stories | any(. == "<story-id>"))' {{PRD_FILE}}
+```
+
+- If **all** stories in a gate are `"done"` → set the gate to `"done"`.
+- If **any** story in a gate is `"in_progress"` → set the gate to `"in_progress"`.
+- If a gate was `"pending"` and you started work on its stories → set the gate to `"in_progress"`.
 
 Use `jq` or targeted edits — do not rewrite the entire file.
 
 ### 4.3 — Update Remote Sources
 
-Check the `LOOM_SOURCE_TYPE` and `LOOM_SOURCE_REF` environment variables. If set, they identify the originating issue/ticket (e.g., `github` + `42`, or `linear` + `SCP-142`). Also check if the directive references remote sources like Linear or GitHub tickets.
+Check the `LOOM_SOURCE_TYPE` and `LOOM_SOURCE_REF` environment variables. If set, they identify the originating issue/ticket (e.g., `github` + `42`, or `linear` + `SCP-142`). Also check if individual stories reference remote sources (e.g. `"source": "github:15"` or `"source": "linear:SCP-42"`).
 
-Post a **completion update** to the source:
+**Update both the comment and the status** on each source:
 
-- **GitHub**: `gh issue comment $LOOM_SOURCE_REF --body "<update>"`. Include commit hashes, story IDs completed, and a summary of work done.
-- **Linear**: Use Linear MCP tools to add a comment to the ticket.
-- Reference the specific commit hash and story-ID that pertain to the ticket and its update.
-- If updating to an intermediate status, explain in detail what progress has been made so far and what progress remains, including references to sources and commit hashes.
+- **GitHub**: Post a comment (`gh issue comment`) **and** update the issue state if appropriate. If all stories linked to an issue are `done`, close it: `gh issue close $REF --comment "<resolution>"`. If work is in progress, leave it open but comment with progress.
+- **Linear**: Use Linear MCP tools to comment **and** update the ticket status (e.g., move to "In Progress", "Done", "In Review" as appropriate).
+- Reference specific commit hashes and story IDs in every update.
+- If updating to an intermediate status, explain what was done and what remains.
 - If resolving, explain how it was resolved/fixed.
-- If closing/cancelling without resolution, justify the closure and explain why in great detail, including references to sources that you used to reach your decision.
+- If closing/cancelling without resolution, justify the closure with references to sources.
 
 ### 4.4 — Commit (only if tests pass)
 
@@ -370,7 +384,18 @@ Use Vestige to store any operational learnings from this iteration — things yo
 
 Only store things that would be **useful to a future iteration with no memory of this one**. Don't store routine progress — that's what status.md is for.
 
-### 4.8 — Emit Result Signal (MANDATORY)
+### 4.8 — Reconcile Statuses
+
+Before emitting the result signal, verify that all statuses are accurate and consistent:
+
+1. **PRD stories** — re-read the stories you touched this iteration (`jq` by ID). Confirm each status matches reality: `done` only if all acceptance criteria are met and code is committed, `in_progress` if partial, `pending` if failed and needs retry. Fix any that are wrong.
+2. **PRD gates** — re-read gates that contain stories touched this iteration. Confirm each gate's status is consistent with its stories: `done` only if all stories are `done`, `in_progress` if any story is in progress. Fix any that are wrong.
+3. **Remote sources** — if `LOOM_SOURCE_TYPE`/`LOOM_SOURCE_REF` are set or stories have source links, confirm you posted updates in 4.3. If you skipped any, post them now.
+4. **Result signal alignment** — the signal you're about to emit must match the PRD state. If any dispatched story is still `in_progress` or `pending`, you cannot emit `SUCCESS` or `DONE`. If all remaining stories are `done` and tests pass, do not emit `PARTIAL`.
+
+This step exists because status drift is a recurring defect. Do not skip it.
+
+### 4.9 — Emit Result Signal (MANDATORY)
 
 **You MUST print one of these exact lines as visible output before writing status.md.** The loop controller parses your stdout for this signal. If you skip it, the iteration is recorded as UNKNOWN.
 
@@ -388,7 +413,7 @@ LOOM_RESULT:DONE
 - `LOOM_RESULT:FAILED` — nothing completed successfully this iteration
 - `LOOM_RESULT:DONE` — no actionable stories remain in the PRD and no tests are failing; the loop should stop
 
-### 4.9 — Update Status (LAST STEP — triggers loop restart)
+### 4.10 — Update Status (LAST STEP — triggers loop restart)
 
 **This must be the final file you write.** Writing to `status.md` signals the loop controller that the iteration is complete. You will be terminated immediately after this write. Ensure all commits and memory storage are done before this step.
 
