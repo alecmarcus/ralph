@@ -1,23 +1,15 @@
-# No-op outside Loom — detect via .loom/.pid with live PID check
-_is_loom() {
-  local d="$1"
-  [ -f "$d/.pid" ] || return 1
-  local pid; pid=$(cat "$d/.pid" 2>/dev/null) || return 1
-  kill -0 "$pid" 2>/dev/null
-}
-
-LOOM_DIR="${PWD}/.loom"
-_is_loom "$LOOM_DIR" || LOOM_DIR="${CLAUDE_PROJECT_DIR:-.}/.loom"
-_is_loom "$LOOM_DIR" || exit 0#!/usr/bin/env bash
+#!/usr/bin/env bash
 # ─── Loom Subagent Stop Guard ───────────────────────────────────
 # Validates that a subagent produced meaningful output before
 # the orchestrator accepts its result. Only active in Loom loops.
 # ─────────────────────────────────────────────────────────────────
 
-# No-op outside Loom — detect via .loom marker file instead of env var
+# No-op outside Loom — require live .pid and non-interactive session
+_is_loom() { [ -f "$1/.pid" ] && kill -0 "$(cat "$1/.pid" 2>/dev/null)" 2>/dev/null; }
 LOOM_DIR="${PWD}/.loom"
-[ -f "$LOOM_DIR/.pid" ] || LOOM_DIR="${CLAUDE_PROJECT_DIR:-.}/.loom"
-[ -f "$LOOM_DIR/.pid" ] || exit 0
+_is_loom "$LOOM_DIR" || LOOM_DIR="${CLAUDE_PROJECT_DIR:-.}/.loom"
+_is_loom "$LOOM_DIR" || exit 0
+[ -z "${CLAUDECODE:-}" ] || exit 0
 
 # No enforcement in preview
 [ "$LOOM_PREVIEW" = "1" ] && exit 0
