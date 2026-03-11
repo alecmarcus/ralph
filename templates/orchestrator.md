@@ -169,7 +169,7 @@ Wait for accept/reject/modify verdicts.
 
 ### 5.3. Check Convergence
 
-- **Zero accepted findings** → review cycle done. Proceed to step 6.
+- **Zero accepted findings** → proceed to §5.5 (PR comment resolution).
 - **Accepted findings > 0** → dispatch coder to the SAME branch/worktree with:
   1. The original issue body
   2. The coder template
@@ -185,11 +185,33 @@ Track finding counts across cycles. Findings should DECREASE each cycle.
 - If cycle N+1 has MORE findings than cycle N, flag it — the coder's fixes are introducing new issues. Note this in the arbiter prompt for the next cycle.
 - **Safety valve:** Max 5 review cycles per issue. If it doesn't converge, stop the cycle, comment on the issue per the status table (§4.1), and skip shipping.
 
+### 5.5. PR Comment Resolution
+
+If a PR already exists for this branch, check for unresolved comments before proceeding to verification:
+
+```bash
+gh api repos/{owner}/{repo}/pulls/{pr-number}/comments --jq '.[] | {id, path, body, line}'
+gh api repos/{owner}/{repo}/pulls/{pr-number}/reviews --jq '.[] | {id, state, body}'
+```
+
+Every unresolved PR comment must be addressed. "Addressed" means ALL three of these:
+
+1. **Act** — make any required code changes. Dispatch the coder if changes are needed.
+2. **Respond** — reply to the comment with what was done, referencing specific commit hashes, files, lines, issues, or other relevant materials. Be concrete: "Fixed in `abc123` — added null check at `src/auth.ts:42`" not "Done."
+3. **Resolve** — mark the comment as resolved:
+   ```bash
+   gh api graphql -f query='mutation { minimizeComment(input: {subjectId: "<comment-node-id>", classifier: RESOLVED}) { minimizedComment { isMinimized } } }'
+   ```
+
+If new comments arrive after the review cycle converged, treat them like accepted findings — dispatch the coder to fix, respond, and resolve. Do NOT proceed to verification until all comments are addressed.
+
+The review cycle is not converged until: zero accepted findings from the arbiter AND zero unresolved PR comments.
+
 ---
 
 ## 6. Verification Gates
 
-Before shipping, run CI/verification on each branch:
+Before pushing, run the full CI/verification suite locally on each branch:
 
 ```bash
 # Run whatever the project uses — detect from package.json, Makefile, etc.
@@ -199,12 +221,14 @@ npm run lint    # if available
 npm run build   # if available
 ```
 
+**ALL gates must pass locally before ANY push.** Do not push broken code and wait for remote CI to catch it. The branch must be green on your machine first.
+
 If any gate fails:
 1. Attempt to fix (dispatch coder to the branch with the failure output)
-2. Re-run gates
+2. Re-run ALL gates (not just the one that failed)
 3. If still failing after 2 attempts, comment on the issue with the failure output and skip shipping
 
-Do NOT push until all gates pass.
+Do NOT push until all gates pass. No exceptions.
 
 ---
 

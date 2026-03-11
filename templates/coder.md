@@ -42,15 +42,15 @@ You do NOT have authority to make process-level or scope-level decisions about w
 
 ## After Implementation
 
-1. **Run the test suite.** If the project has tests, run them. If tests fail, fix them. Re-run. Max 3 attempts — if still failing after 3, stop and report.
+1. **Run the full CI suite locally.** Tests, lint, type-check, build — whatever the project uses. ALL must pass. If any fail, fix them. Re-run ALL gates (not just the one that failed). Max 3 attempts — if still failing after 3, stop and report.
 
 2. **Create or update tests** for the work you did, if the project uses tests.
 
 3. **Update documentation** — if you changed APIs, conventions, or patterns, update relevant docs. Skip for trivial changes.
 
-4. **Commit** — only if tests pass. Use conventional commits: `type(scope): description (#issue)`. Example: `feat(auth): add OAuth callback (#42)`. Stage specific files — never `git add -A`.
+4. **Commit** — only if ALL gates pass. Use conventional commits: `type(scope): description (#issue)`. Example: `feat(auth): add OAuth callback (#42)`. Stage specific files — never `git add -A`.
 
-5. **Do NOT push. Do NOT open a PR.** The orchestrator handles that.
+5. **Do NOT push. Do NOT open a PR.** The orchestrator handles that. The code must be green locally before the orchestrator pushes it.
 
 ---
 
