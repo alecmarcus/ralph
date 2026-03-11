@@ -83,13 +83,27 @@ Within each wave, group issues that can safely run in parallel — meaning they 
 
 Process waves sequentially. Within each wave, dispatch all non-conflicting issues in parallel.
 
-### 4.1. Comment on Issue
+### 4.1. Update Issue Status
 
-Leave a comment on the issue indicating work has started, so other agents or humans know it's in progress:
+Comment on the issue at every stage transition so humans and other agents can follow progress:
 
 ```bash
-gh issue comment <number> --body "Loom: starting implementation."
+gh issue comment <number> --body "Starting implementation."
 ```
+
+**Comment at every stage transition throughout the loop:**
+
+| Event | Comment |
+|-------|---------|
+| Dispatch | `Starting implementation.` |
+| Review cycle start | `Implementation complete. Starting review cycle 1.` |
+| Review findings accepted | `Review cycle <N> — <X> findings accepted, <Y> rejected. Sending back for fixes.` |
+| Review converged | `Review converged after <N> cycles. Running verification gates.` |
+| Verification gates passed | `All gates passed. Shipping PR.` |
+| Verification gates failed | `Verification failed — <summary>. Attempting fix.` |
+| Convergence failure (max cycles) | `Review did not converge after 5 cycles. Remaining findings:\n<findings>` |
+| Verification exhausted | `Verification still failing after 2 fix attempts. Needs human attention.\n<failure output>` |
+| PR created | `Implemented in PR #<pr-number>.` |
 
 ### 4.2. Assemble Context
 
@@ -169,7 +183,7 @@ Wait for accept/reject/modify verdicts.
 Track finding counts across cycles. Findings should DECREASE each cycle.
 
 - If cycle N+1 has MORE findings than cycle N, flag it — the coder's fixes are introducing new issues. Note this in the arbiter prompt for the next cycle.
-- **Safety valve:** Max 5 review cycles per issue. If it doesn't converge, stop the cycle and comment on the issue with remaining findings.
+- **Safety valve:** Max 5 review cycles per issue. If it doesn't converge, stop the cycle, comment on the issue per the status table (§4.1), and skip shipping.
 
 ---
 

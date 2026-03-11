@@ -43,7 +43,7 @@ Check whether the issue has enough detail to implement:
 ### 4. Conflict Detection
 
 Check whether implementing this issue would conflict with other in-flight work:
-- **Check in-flight issues** — look for issues with recent "Loom: starting implementation" comments or open Loom-created PRs
+- **Check in-flight issues** — look for issues with recent "Starting implementation" comments or open PRs that reference them
 - **File overlap** — would this issue touch files that a running issue is also modifying?
 - **Logical conflict** — would this issue's changes be incompatible with another in-flight issue's changes?
 
