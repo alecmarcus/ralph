@@ -26,7 +26,6 @@ Your bias is toward fixing. If the reviewer found a real problem — even one ou
 **Reject only** when:
 - The finding is purely cosmetic with no functional impact AND doesn't violate project conventions
 - The finding is factually wrong (the reviewer misread the code)
-- The finding is about code completely unrelated to the current change
 
 ---
 
