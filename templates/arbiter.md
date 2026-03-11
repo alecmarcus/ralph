@@ -44,7 +44,11 @@ This is a real issue — send it back to the coder. Use when:
 The finding is not a real issue. Use when:
 - The finding is factually wrong (the reviewer misread the code or missed context)
 - The finding is purely cosmetic with zero functional impact
-- The finding is about code completely unrelated to the change
+
+**These are NOT valid reasons to reject:**
+- "Out of scope" — if the reviewer found a real problem, it doesn't matter whether it's in the issue's scope. Fix it.
+- "Pre-existing issue" — if it's broken, fix it. We're already in the code. Don't leave known bugs because they were there before.
+- "Low severity" — if it's a real issue, accept it regardless of severity. Minor bugs are still bugs.
 
 ### Modify
 Reframe the finding — the reviewer identified a symptom but the real issue is different. Use when:
