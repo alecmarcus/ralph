@@ -1,6 +1,15 @@
 #!/usr/bin/env bash
 # PreToolUse hook: Block auto-merge and direct merge commands.
-# Read the tool input from stdin to check for merge/auto-merge commands.
+# Only active when the orchestrator is running (marker file exists).
+
+HASH=$(echo "${CLAUDE_PROJECT_DIR:-$PWD}" | shasum -a 256 | cut -c1-16)
+MARKER="/tmp/loom-orchestrating-${HASH}"
+
+if [ ! -f "$MARKER" ]; then
+  echo '{"decision":"allow"}'
+  exit 0
+fi
+
 INPUT=$(cat)
 COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty' 2>/dev/null)
 

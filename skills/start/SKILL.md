@@ -10,11 +10,13 @@ allowed-tools: Read, Agent, Bash, Grep, Glob
 
 ## Launch
 
-Read the orchestrator template and inject it as your task.
+Activate orchestrator mode and load the template.
 
 ```
-1. Read `${CLAUDE_PLUGIN_ROOT}/templates/orchestrator.md`
-2. The contents ARE your instructions. Execute them.
+1. Create the orchestrator marker (enables enforcement hooks):
+   echo "$PWD" | shasum -a 256 | cut -c1-16 | xargs -I{} touch /tmp/loom-orchestrating-{}
+2. Read `${CLAUDE_PLUGIN_ROOT}/templates/orchestrator.md`
+3. The contents ARE your instructions. Execute them.
 ```
 
 ### Scoping
