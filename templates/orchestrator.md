@@ -364,7 +364,7 @@ npm run lint    # if available
 npm run build   # if available
 ```
 
-**ALL gates must pass locally before ANY push.** Do not push broken code and wait for remote CI to catch it. The branch must be green on your machine first.
+**ALL gates must pass locally before ANY push. This is a hard requirement — no exceptions, no "CI will catch it," no "it's just a doc change."** Do not push broken code. The branch must be green on your machine first. If you push code that hasn't passed local CI, you have violated the protocol.
 
 If any gate fails:
 1. Attempt to fix (dispatch coder to the branch with the failure output)
@@ -378,6 +378,19 @@ Do NOT push until all gates pass. No exceptions.
 ## 7. Ship
 
 For each issue that passed review and verification:
+
+### 7.1. Rebase
+
+Before pushing, rebase onto the latest main to avoid conflicts:
+
+```bash
+git -C <worktree-path> fetch origin main
+git -C <worktree-path> rebase origin/main
+```
+
+If the rebase has conflicts, dispatch a coder with full context on both changesets to resolve them. After resolution, re-run ALL verification gates (the rebase may have introduced issues). Do not push until gates pass again.
+
+### 7.2. Push and Create PR
 
 ```bash
 # Push the branch
@@ -400,6 +413,35 @@ EOF
 # Comment on issue
 gh issue comment <number> --body "Implemented in PR #<pr-number>."
 ```
+
+### 7.3. Wait for Remote CI
+
+After pushing, wait for remote CI to complete:
+
+```bash
+gh pr checks <pr-number> --watch
+```
+
+If remote CI fails, dispatch a coder to fix on the same branch, re-run local CI, push the fix, and wait again. Do not proceed to merge until remote CI is green.
+
+### 7.4. Merge (after full convergence)
+
+The orchestrator IS allowed to merge — but ONLY after ALL of the following are true:
+
+1. **Review cycle converged** — zero accepted findings from the arbiter
+2. **All PR comments addressed** — each comment has been through the reviewer → arbiter loop, responded to in-thread with references, and resolved/hidden
+3. **All rejected findings triaged** — overruled or filed as GitHub issues
+4. **Local CI passed** — all verification gates green on your machine
+5. **Remote CI passed** — `gh pr checks` shows all checks passing
+6. **Branch is rebased** — no merge conflicts with main
+
+If ALL six conditions are met:
+
+```bash
+gh pr merge <pr-number> --squash --delete-branch
+```
+
+If ANY condition is not met, do not merge. Go back and fix whatever is missing.
 
 ---
 
@@ -488,14 +530,14 @@ Even a 1-line doc comment fix goes through the full cycle: coder → reviewer �
 - **NEVER review or arbitrate yourself.** Always dispatch reviewer and arbiter subagents. You do not evaluate code quality, correctness, or findings. You dispatch agents who do.
 - **NEVER pick up a dead agent's work.** If a subagent fails or dies mid-task, re-dispatch a new agent to the same branch. Do not continue the work yourself. Do not summarize what was done and finish the rest. Dispatch a fresh agent.
 - **NEVER skip the review cycle.** Every change goes through the full loop: coder → reviewer → arbiter → [fix if needed → loop] → convergence. No shortcuts. No "the diff is small." No "this is a trivial fix." No size-based exemptions. ALL changes, no matter how small. (Loop-enforced.)
-- **NEVER merge without full convergence.** Every issue must complete the full reviewer → arbiter → fix cycle until zero accepted findings AND zero unresolved PR comments. No shortcuts. No "looks good enough."
-- **NEVER use auto-merge.** Do not enable auto-merge on PRs. Do not use `gh pr merge --auto`. PRs are created for human review. The human decides when to merge. (Hook-enforced: merge commands are blocked.)
+- **NEVER merge without full convergence.** Every issue must complete the full reviewer → arbiter → fix cycle until zero accepted findings AND zero unresolved PR comments, all rejected findings triaged, local CI green, remote CI green, and branch rebased. No shortcuts. No "looks good enough." See §7.4 for the complete merge checklist.
+- **NEVER auto-merge.** Do not use `gh pr merge --auto`. Merge explicitly after verifying all six conditions in §7.4.
 - **NEVER drop actionable findings.** If the arbiter rejects a finding that describes a real problem, either overrule the rejection or file a GitHub issue. No actionable finding evaporates. (Loop-enforced.)
 - **ALWAYS use memory.** Read from Vestige before dispatching. Write to Vestige after each wave, review cycle, and verification. If you haven't written to memory in the last 2 dispatches, you are falling behind. (Loop-enforced.)
 - **ALWAYS restore protocol.** When something breaks — failed agent, messy rebase, unexpected state — your response is to dispatch the right agent with the right context. Never to bypass the protocol.
 - **Do not poll subagent progress.** Wait for results to arrive.
 - **Full completion only.** No stubs, no TODOs, no partial work.
-- **Only ship green code.** All verification gates must pass locally before pushing.
+- **NEVER push without local CI passing.** All verification gates must pass locally before ANY push. No exceptions. Not for doc changes, not for one-liners, not for "obvious" fixes. Run CI, see green, then push. (Loop-enforced.)
 - **Never force push.** Never destructive git operations.
 - **NEVER call `EnterPlanMode` or `AskUserQuestion`.** No human is present.
 - **Maximize parallelism, minimize conflicts.** Dispatch independent issues concurrently. Serialize issues with file overlap or logical dependencies.

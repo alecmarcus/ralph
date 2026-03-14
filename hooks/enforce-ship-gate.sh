@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# PreToolUse hook (Bash): Block merge commands unconditionally.
+# PreToolUse hook (Bash): Block auto-merge. Allow explicit merge after convergence.
 # Only active when the orchestrator is running (marker file exists).
 
 HASH=$(echo "${CLAUDE_PROJECT_DIR:-$PWD}" | shasum -a 256 | cut -c1-16)
@@ -13,8 +13,9 @@ fi
 INPUT=$(cat)
 COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty' 2>/dev/null)
 
-if echo "$COMMAND" | grep -qE '(gh pr merge|--auto-merge|--auto[^-]|git merge)'; then
-  echo '{"decision":"block","reason":"BLOCKED: Never merge PRs directly. PRs are created for human review. The human decides when to merge."}'
+# Block auto-merge flags — explicit merge is allowed after full convergence (§7.4)
+if echo "$COMMAND" | grep -qE '(--auto-merge|--auto[^-]|gh pr merge.*--auto)'; then
+  echo '{"decision":"block","reason":"BLOCKED: Never use auto-merge. Merge explicitly after verifying all six conditions in §7.4: review converged, PR comments addressed, rejected findings triaged, local CI green, remote CI green, branch rebased."}'
   exit 0
 fi
 
