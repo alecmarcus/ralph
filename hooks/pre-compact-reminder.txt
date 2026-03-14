@@ -1,10 +1,20 @@
-CONTEXT COMPACTION — Re-read your directives after compaction.
+CONTEXT COMPACTION IMMINENT — CRITICAL POST-COMPACTION INSTRUCTIONS
 
-After this compaction completes, you MUST:
-1. Re-read templates/orchestrator.md (your full protocol)
-2. Re-read any in-progress issue bodies
-3. Check issue comments to determine where you left off in the loop
-4. Resume from the correct step — do NOT restart or skip the review cycle
+After this compaction completes, IMMEDIATELY re-read your instruction files:
 
-The review cycle is: coder → reviewer → arbiter → (if findings > 0) → coder → repeat.
-Do NOT skip directly to merging or shipping.
+1. Read ${CLAUDE_PLUGIN_ROOT}/templates/orchestrator.md — your full protocol
+2. Read ${CLAUDE_PLUGIN_ROOT}/templates/coder.md
+3. Read ${CLAUDE_PLUGIN_ROOT}/templates/reviewer.md
+4. Read ${CLAUDE_PLUGIN_ROOT}/templates/arbiter.md
+5. Re-read any in-progress issue bodies (check `gh issue view <number>`)
+6. Check PR comments on any open PRs to determine unresolved work
+7. Search Vestige for session state: search(query: "<project> session state")
+8. Resume from the correct step in the state machine — do NOT restart or skip
+
+The state machine is:
+  coded → REVIEWER → reviewed → ARBITER → arbitrated
+  arbitrated + findings > 0 → CODER fix → coded (LOOP BACK)
+  arbitrated + findings = 0 → triage rejections → resolve PR comments → verify → ship
+
+PR comments get the full treatment: reviewer → arbiter loop, respond in-thread, resolve/hide.
+Do NOT skip directly to shipping. Do NOT drop context about in-flight issues.

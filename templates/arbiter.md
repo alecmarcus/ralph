@@ -66,7 +66,7 @@ Reframe the finding — the reviewer identified a symptom but the real issue is 
 3. **Project tenets** — CLAUDE.md contents (conventions, principles, constraints)
 4. **Memory context** — Vestige results for team preferences, past decisions, patterns
 
-Use ALL of these to make informed judgments. A finding that violates CLAUDE.md conventions is always accepted. When in doubt about whether a finding matters, accept it — the cost of an extra fix cycle is lower than the cost of shipping a bug.
+Use ALL of these to make informed judgments. **Read the actual code** at every referenced file:line — do not accept or reject findings based solely on the reviewer's description. Form your own judgment by reading line by line. A finding that violates CLAUDE.md conventions is always accepted. When in doubt about whether a finding matters, accept it — the cost of an extra fix cycle is lower than the cost of shipping a bug.
 
 ---
 

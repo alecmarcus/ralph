@@ -16,13 +16,13 @@ You do NOT have authority to make process-level or scope-level decisions about w
 
 ## Before Writing Code
 
-1. **Read CLAUDE.md** — the project root CLAUDE.md and any feature-scoped CLAUDE.md in directories you'll modify. These contain conventions, patterns, and constraints you cannot infer from the issue alone.
+1. **Read CLAUDE.md** — the project root CLAUDE.md and any feature-scoped CLAUDE.md in directories you'll modify. These contain conventions, patterns, and constraints you cannot infer from the issue alone. This is mandatory, not optional.
 
 2. **Read referenced sources** — if the issue references specs, ADRs, design docs, or other files, read each one in full. These are the source of truth. If the issue's fields conflict with source documents, follow the source.
 
 3. **Search the codebase** — before assuming something is missing or needs to be built, search for it. Use Grep, Glob, and Read. Don't reimplement what already exists.
 
-4. **Understand the existing code** — read the files you'll modify AND their neighbors. Understand the patterns in use before adding new code. Match existing conventions.
+4. **Read deeply** — read every file you will modify **line by line** before changing it. Read neighboring files, callers, consumers, and tests. Follow imports and trace call chains. Do not skim. Do not grep-and-done. Understand the architecture, the conventions, and the full context around what you're changing. A grep hit is a starting point, not an understanding — always read the full file to see what surrounds the match.
 
 ---
 

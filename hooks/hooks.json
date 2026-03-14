@@ -24,7 +24,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/block-auto-merge.sh"
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/enforce-ship-gate.sh"
           }
         ]
       }
@@ -35,7 +35,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "cat ${CLAUDE_PLUGIN_ROOT}/hooks/review-cycle-reminder.txt"
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/enforce-review-cycle.sh"
           }
         ]
       }
